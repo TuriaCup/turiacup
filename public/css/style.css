@@ -1,14 +1,14 @@
 :root {
-  --blue-900: #0b2e4f;
-  --blue-700: #0f4c81;
-  --blue-500: #1c74c9;
-  --accent: #f2a900;
+  --blue-900: #1c130a;
+  --blue-700: #c65b00;
+  --blue-500: #f97b05;
+  --accent: #ffb703;
   --green: #1c9a5b;
-  --bg: #f7f9fb;
-  --text: #1a2733;
-  --text-muted: #5c6b78;
+  --bg: #faf8f6;
+  --text: #241b12;
+  --text-muted: #6b6058;
   --white: #ffffff;
-  --border: #e1e7ec;
+  --border: #ece5df;
   --radius: 10px;
   --max-width: 1140px;
 }
