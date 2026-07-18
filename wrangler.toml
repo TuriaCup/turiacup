@@ -1,4 +1,4 @@
-name = "turiacup-web"
+name = "turiacup"
 compatibility_date = "2026-07-18"
 main = "worker/index.js"
 
