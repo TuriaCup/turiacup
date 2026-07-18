@@ -1,7 +1,7 @@
 :root {
   --blue-900: #1c130a;
   --blue-700: #c65b00;
-  --blue-500: #f97b05;
+  --blue-500: #ff7900;
   --accent: #ffb703;
   --green: #1c9a5b;
   --bg: #faf8f6;
@@ -54,12 +54,15 @@ h3 { font-size: 1.05rem; color: var(--blue-900); }
   height: 64px;
 }
 .logo {
-  font-weight: 800;
-  font-size: 1.3rem;
-  color: var(--blue-900);
+  display: flex;
+  align-items: center;
   text-decoration: none;
 }
-.logo span { color: var(--accent); }
+.logo img {
+  height: 36px;
+  width: auto;
+  display: block;
+}
 
 .main-nav {
   display: flex;
@@ -103,6 +106,12 @@ h3 { font-size: 1.05rem; color: var(--blue-900); }
   color: var(--white);
   padding: 90px 0 80px;
   text-align: center;
+}
+.hero-badge {
+  width: 96px;
+  height: auto;
+  margin: 0 auto 20px;
+  display: block;
 }
 .hero-eyebrow {
   text-transform: uppercase;
