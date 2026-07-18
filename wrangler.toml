@@ -5,4 +5,4 @@ pages_build_output_dir = "."
 [[d1_databases]]
 binding = "DB"
 database_name = "turiacup-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "9fb7c58f-2f80-478e-bc6b-561e6b18e237"
