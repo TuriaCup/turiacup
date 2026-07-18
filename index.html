@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turia Cup — Torneo Internacional de Fútbol Base</title>
+<meta name="description" content="Turia Cup: torneo de fútbol base con equipos nacionales e internacionales. Categorías U8 a U12. Fotos, vídeos e inscripción de equipos.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="#inicio" class="logo">Turia<span>Cup</span></a>
+    <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="main-nav" id="mainNav">
+      <a href="#torneo">El Torneo</a>
+      <a href="#categorias">Categorías</a>
+      <a href="#galeria">Galería</a>
+      <a href="#videos">Vídeos</a>
+      <a href="#inscripcion" class="nav-cta">Inscribe tu equipo</a>
+    </nav>
+  </div>
+</header>
+
+<section id="inicio" class="hero">
+  <div class="container hero-inner">
+    <p class="hero-eyebrow">Torneo Internacional de Fútbol Base</p>
+    <h1>Turia Cup</h1>
+    <p class="hero-sub">Equipos de toda España y clubes internacionales compitiendo en categorías U8 a U12.</p>
+    <div class="hero-meta">
+      <span>📅 Fechas por confirmar</span>
+      <span>📍 Valencia, España</span>
+    </div>
+    <a href="#inscripcion" class="btn btn-primary">Inscribe tu equipo</a>
+  </div>
+</section>
+
+<section id="torneo" class="section">
+  <div class="container">
+    <h2>El Torneo</h2>
+    <p class="section-lead">
+      Turia Cup reúne cada año a clubes de fútbol base de toda España, con la participación de
+      equipos internacionales, en un torneo pensado para el desarrollo deportivo y la convivencia
+      de los más jóvenes. Varios días de competición, múltiples campos y un ambiente único para
+      jugadores, familias y clubes.
+    </p>
+    <div class="info-grid">
+      <div class="info-card">
+        <h3>Fechas</h3>
+        <p>Por confirmar</p>
+      </div>
+      <div class="info-card">
+        <h3>Sede</h3>
+        <p>Valencia, España — campos por confirmar</p>
+      </div>
+      <div class="info-card">
+        <h3>Participantes</h3>
+        <p>Clubes nacionales e internacionales</p>
+      </div>
+      <div class="info-card">
+        <h3>Clasificaciones</h3>
+        <p>Próximamente: resultados, cruces y horarios en directo</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="categorias" class="section section-alt">
+  <div class="container">
+    <h2>Categorías</h2>
+    <p class="section-lead">El torneo cuenta con cinco categorías de fútbol base:</p>
+    <div class="cat-grid">
+      <div class="cat-card">U8</div>
+      <div class="cat-card">U9</div>
+      <div class="cat-card">U10</div>
+      <div class="cat-card">U11</div>
+      <div class="cat-card">U12</div>
+    </div>
+  </div>
+</section>
+
+<section id="galeria" class="section">
+  <div class="container">
+    <h2>Galería</h2>
+    <p class="section-lead">Fotos de ediciones anteriores del torneo.</p>
+    <!-- Sustituir cada .gallery-item por <img src="img/nombre.jpg" alt="..."> cuando haya fotos reales -->
+    <div class="gallery-grid">
+      <div class="gallery-item placeholder">Foto próximamente</div>
+      <div class="gallery-item placeholder">Foto próximamente</div>
+      <div class="gallery-item placeholder">Foto próximamente</div>
+      <div class="gallery-item placeholder">Foto próximamente</div>
+      <div class="gallery-item placeholder">Foto próximamente</div>
+      <div class="gallery-item placeholder">Foto próximamente</div>
+      <div class="gallery-item placeholder">Foto próximamente</div>
+      <div class="gallery-item placeholder">Foto próximamente</div>
+    </div>
+  </div>
+</section>
+
+<section id="videos" class="section section-alt">
+  <div class="container">
+    <h2>Vídeos</h2>
+    <p class="section-lead">Resumen y momentos destacados del torneo.</p>
+    <!--
+      Sustituir el src por la URL de embed real de YouTube/Vimeo, ej:
+      https://www.youtube.com/embed/VIDEO_ID
+    -->
+    <div class="video-grid">
+      <div class="video-item">
+        <div class="video-placeholder">Vídeo próximamente</div>
+      </div>
+      <div class="video-item">
+        <div class="video-placeholder">Vídeo próximamente</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="inscripcion" class="section">
+  <div class="container">
+    <h2>Inscribe tu equipo</h2>
+    <p class="section-lead">Rellena el formulario y nos pondremos en contacto para confirmar la inscripción.</p>
+
+    <form id="inscripcionForm" class="form" novalidate>
+      <div class="form-row">
+        <label for="club">Club *</label>
+        <input type="text" id="club" name="club" required maxlength="120">
+      </div>
+
+      <div class="form-row">
+        <label for="categoria">Categoría *</label>
+        <select id="categoria" name="categoria" required>
+          <option value="" disabled selected>Selecciona una categoría</option>
+          <option value="U8">U8</option>
+          <option value="U9">U9</option>
+          <option value="U10">U10</option>
+          <option value="U11">U11</option>
+          <option value="U12">U12</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label for="ciudad">Ciudad *</label>
+        <input type="text" id="ciudad" name="ciudad" required maxlength="120">
+      </div>
+
+      <div class="form-row">
+        <label for="nombre">Nombre de contacto *</label>
+        <input type="text" id="nombre" name="nombre" required maxlength="120">
+      </div>
+
+      <div class="form-row">
+        <label for="email">Email de contacto *</label>
+        <input type="email" id="email" name="email" required maxlength="180">
+      </div>
+
+      <div class="form-row">
+        <label for="telefono">Teléfono de contacto *</label>
+        <input type="tel" id="telefono" name="telefono" required maxlength="30">
+      </div>
+
+      <div class="form-row form-row-full">
+        <label for="comentarios">Comentarios</label>
+        <textarea id="comentarios" name="comentarios" rows="4" maxlength="1000"></textarea>
+      </div>
+
+      <!-- Honeypot anti-spam -->
+      <div class="form-row form-hidden" aria-hidden="true">
+        <label for="website">No rellenar</label>
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+      </div>
+
+      <div class="form-row form-row-full">
+        <button type="submit" class="btn btn-primary" id="submitBtn">Enviar inscripción</button>
+      </div>
+
+      <div class="form-feedback" id="formFeedback" role="status" aria-live="polite"></div>
+    </form>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p>&copy; <span id="year"></span> Turia Cup. Todos los derechos reservados.</p>
+    <p><a href="mailto:info@turiacup.com">info@turiacup.com</a></p>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
