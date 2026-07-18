@@ -10,3 +10,8 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "turiacup-db"
 database_id = "9fb7c58f-2f80-478e-bc6b-561e6b18e237"
+
+[vars]
+NOTIFY_EMAIL = "info@turiacup.com"
+FROM_EMAIL = "Turia Cup <inscripciones@turiacup.com>"
+# RESEND_API_KEY se configura como secreto, no aquí (ver README)

@@ -75,6 +75,21 @@ En el propio proyecto: **Settings → Domains & Routes → Add** → introduce `
 wrangler d1 execute turiacup-db --remote --command="SELECT * FROM inscripciones ORDER BY created_at DESC"
 ```
 
+## 7. Notificación por email de cada inscripción
+
+Cada inscripción envía un email a `info@turiacup.com` (configurable en `wrangler.toml`, variable `NOTIFY_EMAIL`) usando [Resend](https://resend.com).
+
+1. Crea una cuenta gratuita en resend.com (hasta 3.000 emails/mes gratis)
+2. **Domains → Add Domain** → introduce `turiacup.com`
+3. Resend te da unos registros DNS (TXT/DKIM/MX) para verificar el dominio. Añádelos en el dashboard de Cloudflare, en **turiacup.com → DNS → Records** (como el dominio ya está en Cloudflare, es cuestión de copiar y pegar cada registro)
+4. Espera a que el dominio aparezca como "Verified" en Resend (puede tardar unos minutos)
+5. **API Keys → Create API Key** → cópiala
+6. Añádela como secreto del Worker (no va en `wrangler.toml` para no exponerla en el repo):
+   - Dashboard: proyecto `turiacup` → **Settings → Variables and Secrets → Add → Secret** → nombre `RESEND_API_KEY`, valor la clave de Resend
+   - O por CLI: `wrangler secret put RESEND_API_KEY`
+
+Si `RESEND_API_KEY` no está configurada, el formulario sigue funcionando con normalidad (solo guarda en D1) — el envío de email es silencioso y no bloquea la inscripción si falla.
+
 ## Próximos pasos (fuera del alcance actual)
 
 - Módulo de clasificaciones, resultados y cruces

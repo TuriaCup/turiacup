@@ -13,6 +13,45 @@ function jsonResponse(body, status) {
   });
 }
 
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[c]);
+}
+
+async function notifyNewInscripcion(env, inscripcion) {
+  if (!env.RESEND_API_KEY || !env.NOTIFY_EMAIL || !env.FROM_EMAIL) return;
+
+  const { club, categorias, ciudad, nombre, email, telefono, comentarios } = inscripcion;
+  const html = `
+    <h2>Nueva inscripción en Turia Cup</h2>
+    <p><strong>Club:</strong> ${escapeHtml(club)}</p>
+    <p><strong>Categorías:</strong> ${escapeHtml(categorias.join(', '))}</p>
+    <p><strong>Ciudad:</strong> ${escapeHtml(ciudad)}</p>
+    <p><strong>Contacto:</strong> ${escapeHtml(nombre)} · ${escapeHtml(email)} · ${escapeHtml(telefono)}</p>
+    ${comentarios ? `<p><strong>Comentarios:</strong> ${escapeHtml(comentarios)}</p>` : ''}
+  `;
+
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: env.FROM_EMAIL,
+        to: env.NOTIFY_EMAIL,
+        reply_to: email,
+        subject: `Nueva inscripción: ${club} (${categorias.join(', ')})`,
+        html,
+      }),
+    });
+  } catch (err) {
+    // Best-effort: la inscripción ya está guardada en D1 aunque falle el email
+  }
+}
+
 async function handleInscripcion(request, env) {
   let payload;
   try {
@@ -63,6 +102,8 @@ async function handleInscripcion(request, env) {
   } catch (err) {
     return jsonResponse({ error: 'No se pudo guardar la inscripción. Inténtalo de nuevo.' }, 500);
   }
+
+  await notifyNewInscripcion(env, { club, categorias, ciudad, nombre, email, telefono, comentarios });
 
   return jsonResponse({ ok: true }, 200);
 }
