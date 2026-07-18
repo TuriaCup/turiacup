@@ -13,7 +13,7 @@ function jsonResponse(body, status) {
   });
 }
 
-export async function onRequestPost({ request, env }) {
+async function handleInscripcion(request, env) {
   let payload;
   try {
     payload = await request.json();
@@ -63,3 +63,15 @@ export async function onRequestPost({ request, env }) {
 
   return jsonResponse({ ok: true }, 200);
 }
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (url.pathname === '/api/inscripcion' && request.method === 'POST') {
+      return handleInscripcion(request, env);
+    }
+
+    return new Response('Not found', { status: 404 });
+  },
+};

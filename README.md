@@ -1,13 +1,13 @@
 # Turia Cup — web del torneo
 
-Sitio estático (HTML/CSS/JS) + Cloudflare Pages Functions + D1 para el formulario de inscripción.
+Cloudflare Worker con assets estáticos + D1 para el formulario de inscripción.
 
 ## Estructura
 
-- `index.html`, `css/`, `js/` — landing pública (info, categorías, galería, vídeos, inscripción)
-- `functions/api/inscripcion.js` — endpoint que recibe el formulario y lo guarda en D1
+- `public/index.html`, `public/css/`, `public/js/`, `public/img/` — landing pública (info, categorías, galería, vídeos, inscripción). Todo lo que hay en `public/` se sirve tal cual.
+- `worker/index.js` — Worker que atiende `POST /api/inscripcion` y guarda en D1 (todo lo demás lo sirven los assets estáticos automáticamente)
 - `schema.sql` — esquema de la tabla `inscripciones`
-- `wrangler.toml` — configuración del proyecto y del binding a D1
+- `wrangler.toml` — configuración del Worker, el directorio de assets y el binding a D1
 
 ## Requisitos previos
 
@@ -22,7 +22,7 @@ wrangler login
 wrangler d1 create turiacup-db
 ```
 
-Copia el `database_id` que devuelve el comando y pégalo en `wrangler.toml` en lugar de `REPLACE_WITH_D1_DATABASE_ID`.
+Copia el `database_id` que devuelve el comando y pégalo en `wrangler.toml`.
 
 Aplica el esquema:
 
@@ -30,37 +30,38 @@ Aplica el esquema:
 wrangler d1 execute turiacup-db --remote --file=./schema.sql
 ```
 
-(usa `--local` en vez de `--remote` para probar en tu máquina con `wrangler pages dev`)
+(usa `--local` en vez de `--remote` para probar en tu máquina)
 
 ## 2. Probar en local
 
 ```bash
-wrangler pages dev . --d1=DB=turiacup-db
+wrangler dev
 ```
 
-Abre `http://localhost:8788` y prueba el formulario de inscripción.
+Abre la URL que indique la terminal y prueba el formulario de inscripción.
 
 ## 3. Subir el código a GitHub
 
-Crea un repositorio nuevo en GitHub y sube este proyecto (`git init`, `git add`, `git commit`, `git remote add origin ...`, `git push`).
+Ya está hecho: el repo vive en GitHub y cada `git push` puede disparar un nuevo deploy si el proyecto de Cloudflare está conectado a él.
 
-## 4. Crear el proyecto en Cloudflare Pages
+## 4. Crear el proyecto en Cloudflare (Workers & Pages)
 
 En el dashboard de Cloudflare:
 
-1. **Workers & Pages → Create → Pages → Connect to Git**
-2. Selecciona el repositorio `turiacup-web`
-3. Framework preset: **None**. Build command: (vacío). Build output directory: `/`
-4. En **Settings → Functions → D1 database bindings**, añade el binding `DB` apuntando a `turiacup-db`
-5. Despliega
+1. **Workers & Pages → Create → Connect to Git**
+2. Selecciona el repositorio del torneo
+3. Cloudflare detecta `wrangler.toml` automáticamente (Worker + assets + binding D1 ya quedan definidos ahí, no hace falta configurarlos a mano en el dashboard)
+4. Despliega
+
+Si el binding a D1 no se aplica solo, revisa en **Settings → Bindings** que exista `DB → turiacup-db`.
 
 ## 5. Conectar el dominio turiacup.com
 
-En el propio proyecto de Pages: **Custom domains → Set up a custom domain** → introduce `turiacup.com` (y opcionalmente `www.turiacup.com`). Como el dominio ya está en Cloudflare, el DNS se configura automáticamente.
+En el propio proyecto: **Settings → Domains & Routes → Add** → introduce `turiacup.com` (y opcionalmente `www.turiacup.com`). Como el dominio ya está en Cloudflare, el DNS se configura automáticamente.
 
 ## 6. Añadir fotos y vídeos reales
 
-- **Fotos**: sustituye los `.gallery-item.placeholder` en `index.html` por `<img src="img/nombre.jpg" alt="...">`, con los archivos en `/img`
+- **Fotos**: sustituye los `.gallery-item.placeholder` en `public/index.html` por `<img src="img/nombre.jpg" alt="...">`, con los archivos en `public/img`
 - **Vídeos**: sustituye los `.video-placeholder` por un iframe embed de YouTube/Vimeo, ej.:
   ```html
   <div class="video-item">
