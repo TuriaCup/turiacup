@@ -186,8 +186,19 @@ h3 { font-size: 1.05rem; color: var(--blue-900); }
   border-radius: var(--radius);
   padding: 28px 10px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.cat-name {
   font-size: 1.4rem;
   font-weight: 800;
+}
+.cat-date {
+  font-size: .85rem;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* Gallery */

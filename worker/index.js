@@ -1,4 +1,4 @@
-const CATEGORIAS_VALIDAS = ['U8', 'U9', 'U10', 'U11', 'U12'];
+const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_LEN = { club: 120, categoria: 10, ciudad: 120, nombre: 120, email: 180, telefono: 30, comentarios: 1000 };
 
