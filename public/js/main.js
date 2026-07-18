@@ -27,7 +27,18 @@ form.addEventListener('submit', async (e) => {
     return;
   }
 
+  const categorias = Array.from(
+    form.querySelectorAll('input[name="categorias"]:checked')
+  ).map((el) => el.value);
+
+  if (categorias.length === 0) {
+    feedback.textContent = 'Selecciona al menos una categoría.';
+    feedback.classList.add('error');
+    return;
+  }
+
   const data = Object.fromEntries(new FormData(form).entries());
+  data.categorias = categorias;
 
   submitBtn.disabled = true;
   submitBtn.textContent = 'Enviando...';

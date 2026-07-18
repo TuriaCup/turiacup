@@ -142,15 +142,14 @@
         <input type="text" id="club" name="club" required maxlength="120">
       </div>
 
-      <div class="form-row">
-        <label for="categoria">Categoría *</label>
-        <select id="categoria" name="categoria" required>
-          <option value="" disabled selected>Selecciona una categoría</option>
-          <option value="U9">U9</option>
-          <option value="U10">U10</option>
-          <option value="U11">U11</option>
-          <option value="U12">U12</option>
-        </select>
+      <div class="form-row form-row-full">
+        <label>Categorías *</label>
+        <div class="checkbox-group" id="categoriasGroup" role="group" aria-label="Categorías">
+          <label class="checkbox-option"><input type="checkbox" name="categorias" value="U9"> U9</label>
+          <label class="checkbox-option"><input type="checkbox" name="categorias" value="U10"> U10</label>
+          <label class="checkbox-option"><input type="checkbox" name="categorias" value="U11"> U11</label>
+          <label class="checkbox-option"><input type="checkbox" name="categorias" value="U12"> U12</label>
+        </div>
       </div>
 
       <div class="form-row">

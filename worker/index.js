@@ -1,6 +1,6 @@
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_LEN = { club: 120, categoria: 10, ciudad: 120, nombre: 120, email: 180, telefono: 30, comentarios: 1000 };
+const MAX_LEN = { club: 120, ciudad: 120, nombre: 120, email: 180, telefono: 30, comentarios: 1000 };
 
 function clean(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -27,35 +27,38 @@ async function handleInscripcion(request, env) {
   }
 
   const club = clean(payload.club);
-  const categoria = clean(payload.categoria).toUpperCase();
+  const categoriasRaw = Array.isArray(payload.categorias) ? payload.categorias : [];
+  const categorias = [...new Set(categoriasRaw.map((c) => clean(c).toUpperCase()))];
   const ciudad = clean(payload.ciudad);
   const nombre = clean(payload.nombre);
   const email = clean(payload.email);
   const telefono = clean(payload.telefono);
   const comentarios = clean(payload.comentarios);
 
-  if (!club || !categoria || !ciudad || !nombre || !email || !telefono) {
+  if (!club || categorias.length === 0 || !ciudad || !nombre || !email || !telefono) {
     return jsonResponse({ error: 'Faltan campos obligatorios.' }, 400);
   }
-  if (!CATEGORIAS_VALIDAS.includes(categoria)) {
+  if (!categorias.every((c) => CATEGORIAS_VALIDAS.includes(c))) {
     return jsonResponse({ error: 'Categoría no válida.' }, 400);
   }
   if (!EMAIL_RE.test(email)) {
     return jsonResponse({ error: 'Email no válido.' }, 400);
   }
   for (const [field, max] of Object.entries(MAX_LEN)) {
-    const value = { club, categoria, ciudad, nombre, email, telefono, comentarios }[field];
+    const value = { club, ciudad, nombre, email, telefono, comentarios }[field];
     if (value.length > max) {
       return jsonResponse({ error: `El campo ${field} es demasiado largo.` }, 400);
     }
   }
 
+  const categoriasStr = categorias.join(',');
+
   try {
     await env.DB.prepare(
-      `INSERT INTO inscripciones (club, categoria, ciudad, nombre, email, telefono, comentarios)
+      `INSERT INTO inscripciones (club, categorias, ciudad, nombre, email, telefono, comentarios)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(club, categoria, ciudad, nombre, email, telefono, comentarios || null)
+      .bind(club, categoriasStr, ciudad, nombre, email, telefono, comentarios || null)
       .run();
   } catch (err) {
     return jsonResponse({ error: 'No se pudo guardar la inscripción. Inténtalo de nuevo.' }, 500);

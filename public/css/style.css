@@ -271,6 +271,33 @@ h3 { font-size: 1.05rem; color: var(--blue-900); }
   outline: 2px solid var(--blue-500);
   outline-offset: 1px;
 }
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--white);
+  font-weight: 500;
+  font-size: 1rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.checkbox-option:has(input:checked) {
+  border-color: var(--blue-500);
+  background: #fff3e6;
+}
+.checkbox-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue-500);
+}
 .form-feedback {
   grid-column: 1 / -1;
   font-weight: 600;
