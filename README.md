@@ -2,6 +2,18 @@
 
 Cloudflare Worker con assets estáticos + D1 para el formulario de inscripción.
 
+## Estado actual (2026-07-29)
+
+**En producción y funcionando en `turiacup.com`:**
+- Landing con logo, colores de marca (#FF7900) y fotos reales del torneo (hero + galería)
+- Categorías U9-U12 con sus fechas (26-28 dic / 20-21 mar)
+- Formulario de inscripción (selección múltiple de categorías) → guarda en D1 → email de aviso a `info@turiacup.com` vía Resend, todo verificado en vivo
+- Los pasos 1-7 de abajo ya están hechos (quedan como referencia/histórico, no como pendientes)
+
+**Pendiente:**
+- Vídeos del torneo (sección "Vídeos" con placeholders — sin material aún)
+- Módulo de clasificaciones, resultados y cruces (ver "Próximos pasos")
+
 ## Estructura
 
 - `public/index.html`, `public/css/`, `public/js/`, `public/img/` — landing pública (info, categorías, galería, vídeos, inscripción). Todo lo que hay en `public/` se sirve tal cual.
@@ -59,10 +71,10 @@ Si el binding a D1 no se aplica solo, revisa en **Settings → Bindings** que ex
 
 En el propio proyecto: **Settings → Domains & Routes → Add** → introduce `turiacup.com` (y opcionalmente `www.turiacup.com`). Como el dominio ya está en Cloudflare, el DNS se configura automáticamente.
 
-## 6. Añadir fotos y vídeos reales
+## 6. Fotos y vídeos reales
 
-- **Fotos**: sustituye los `.gallery-item.placeholder` en `public/index.html` por `<img src="img/nombre.jpg" alt="...">`, con los archivos en `public/img`
-- **Vídeos**: sustituye los `.video-placeholder` por un iframe embed de YouTube/Vimeo, ej.:
+- **Fotos**: ✅ hecho — `public/img/hero/hero-bg.jpg` y `public/img/gallery/gallery-1..8.jpg`, seleccionadas del archivo oficial del torneo (WAVESPRO MEDIA)
+- **Vídeos**: pendiente. Cuando haya material, sustituye los `.video-placeholder` en `public/index.html` por un iframe embed de YouTube/Vimeo, ej.:
   ```html
   <div class="video-item">
     <iframe src="https://www.youtube.com/embed/VIDEO_ID" allowfullscreen></iframe>
@@ -77,7 +89,7 @@ wrangler d1 execute turiacup-db --remote --command="SELECT * FROM inscripciones 
 
 ## 7. Notificación por email de cada inscripción
 
-Cada inscripción envía un email a `info@turiacup.com` (configurable en `wrangler.toml`, variable `NOTIFY_EMAIL`) usando [Resend](https://resend.com).
+✅ Ya configurado y verificado en producción. Cada inscripción envía un email a `info@turiacup.com` (configurable en `wrangler.toml`, variable `NOTIFY_EMAIL`) usando [Resend](https://resend.com). Pasos por si hay que repetirlos en otro proyecto o el dominio pierde la verificación:
 
 1. Crea una cuenta gratuita en resend.com (hasta 3.000 emails/mes gratis)
 2. **Domains → Add Domain** → introduce `turiacup.com`
