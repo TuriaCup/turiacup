@@ -1,121 +1,112 @@
-const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_LEN = { club: 120, ciudad: 120, nombre: 120, email: 180, telefono: 30, comentarios: 1000 };
+import { jsonResponse } from './lib/http.js';
+import { requireAdmin, handleLogin, handleLogout, handleMe } from './lib/auth.js';
+import { handleInscripcion } from './routes/inscripcion.js';
+import {
+  handleListEquipos,
+  handleGetEquipo,
+  handleGetJugador,
+  handleClasificacion,
+  handlePartidos,
+} from './routes/public.js';
+import {
+  handleCreateEquipo,
+  handleUpdateEquipo,
+  handleDeleteEquipo,
+  handleListJugadoresAdmin,
+  handleUploadPlantilla,
+  handleUpdateJugador,
+  handleDeleteJugador,
+  handleCreatePartido,
+  handleUpdatePartido,
+  handleDeletePartido,
+  handleResultadoPartido,
+} from './routes/admin.js';
 
-function clean(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
+function matchPath(pattern, pathname) {
+  const patternParts = pattern.split('/').filter(Boolean);
+  const pathParts = pathname.split('/').filter(Boolean);
+  if (patternParts.length !== pathParts.length) return null;
 
-function jsonResponse(body, status) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
-function escapeHtml(value) {
-  return value.replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[c]);
-}
-
-async function notifyNewInscripcion(env, inscripcion) {
-  if (!env.RESEND_API_KEY || !env.NOTIFY_EMAIL || !env.FROM_EMAIL) return;
-
-  const { club, categorias, ciudad, nombre, email, telefono, comentarios } = inscripcion;
-  const html = `
-    <h2>Nueva inscripción en Turia Cup</h2>
-    <p><strong>Club:</strong> ${escapeHtml(club)}</p>
-    <p><strong>Categorías:</strong> ${escapeHtml(categorias.join(', '))}</p>
-    <p><strong>Ciudad:</strong> ${escapeHtml(ciudad)}</p>
-    <p><strong>Contacto:</strong> ${escapeHtml(nombre)} · ${escapeHtml(email)} · ${escapeHtml(telefono)}</p>
-    ${comentarios ? `<p><strong>Comentarios:</strong> ${escapeHtml(comentarios)}</p>` : ''}
-  `;
-
-  try {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: env.FROM_EMAIL,
-        to: env.NOTIFY_EMAIL,
-        reply_to: email,
-        subject: `Nueva inscripción: ${club} (${categorias.join(', ')})`,
-        html,
-      }),
-    });
-  } catch (err) {
-    // Best-effort: la inscripción ya está guardada en D1 aunque falle el email
-  }
-}
-
-async function handleInscripcion(request, env) {
-  let payload;
-  try {
-    payload = await request.json();
-  } catch {
-    return jsonResponse({ error: 'Solicitud inválida.' }, 400);
-  }
-
-  // Honeypot: si el bot rellena este campo oculto, respondemos como si todo hubiera ido bien
-  if (clean(payload.website)) {
-    return jsonResponse({ ok: true }, 200);
-  }
-
-  const club = clean(payload.club);
-  const categoriasRaw = Array.isArray(payload.categorias) ? payload.categorias : [];
-  const categorias = [...new Set(categoriasRaw.map((c) => clean(c).toUpperCase()))];
-  const ciudad = clean(payload.ciudad);
-  const nombre = clean(payload.nombre);
-  const email = clean(payload.email);
-  const telefono = clean(payload.telefono);
-  const comentarios = clean(payload.comentarios);
-
-  if (!club || categorias.length === 0 || !ciudad || !nombre || !email || !telefono) {
-    return jsonResponse({ error: 'Faltan campos obligatorios.' }, 400);
-  }
-  if (!categorias.every((c) => CATEGORIAS_VALIDAS.includes(c))) {
-    return jsonResponse({ error: 'Categoría no válida.' }, 400);
-  }
-  if (!EMAIL_RE.test(email)) {
-    return jsonResponse({ error: 'Email no válido.' }, 400);
-  }
-  for (const [field, max] of Object.entries(MAX_LEN)) {
-    const value = { club, ciudad, nombre, email, telefono, comentarios }[field];
-    if (value.length > max) {
-      return jsonResponse({ error: `El campo ${field} es demasiado largo.` }, 400);
+  const params = {};
+  for (let i = 0; i < patternParts.length; i++) {
+    const pp = patternParts[i];
+    if (pp.startsWith(':')) {
+      params[pp.slice(1)] = pathParts[i];
+    } else if (pp !== pathParts[i]) {
+      return null;
     }
   }
+  return params;
+}
 
-  const categoriasStr = categorias.join(',');
+async function routeAdmin(request, env, pathname, method) {
+  const unauthorized = await requireAdmin(request, env);
+  if (unauthorized) return unauthorized;
 
-  try {
-    await env.DB.prepare(
-      `INSERT INTO inscripciones (club, categorias, ciudad, nombre, email, telefono, comentarios)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(club, categoriasStr, ciudad, nombre, email, telefono, comentarios || null)
-      .run();
-  } catch (err) {
-    return jsonResponse({ error: 'No se pudo guardar la inscripción. Inténtalo de nuevo.' }, 500);
+  let params;
+
+  if (pathname === '/api/admin/equipos' && method === 'POST') return handleCreateEquipo(request, env);
+
+  params = matchPath('/api/admin/equipos/:id', pathname);
+  if (params) {
+    if (method === 'PUT') return handleUpdateEquipo(request, env, params.id);
+    if (method === 'DELETE') return handleDeleteEquipo(request, env, params.id);
   }
 
-  await notifyNewInscripcion(env, { club, categorias, ciudad, nombre, email, telefono, comentarios });
+  params = matchPath('/api/admin/equipos/:id/jugadores', pathname);
+  if (params && method === 'GET') return handleListJugadoresAdmin(request, env, params.id);
 
-  return jsonResponse({ ok: true }, 200);
+  params = matchPath('/api/admin/equipos/:id/plantilla', pathname);
+  if (params && method === 'POST') return handleUploadPlantilla(request, env, params.id);
+
+  params = matchPath('/api/admin/jugadores/:id', pathname);
+  if (params) {
+    if (method === 'PUT') return handleUpdateJugador(request, env, params.id);
+    if (method === 'DELETE') return handleDeleteJugador(request, env, params.id);
+  }
+
+  if (pathname === '/api/admin/partidos' && method === 'POST') return handleCreatePartido(request, env);
+
+  params = matchPath('/api/admin/partidos/:id', pathname);
+  if (params) {
+    if (method === 'PUT') return handleUpdatePartido(request, env, params.id);
+    if (method === 'DELETE') return handleDeletePartido(request, env, params.id);
+  }
+
+  params = matchPath('/api/admin/partidos/:id/resultado', pathname);
+  if (params && method === 'PUT') return handleResultadoPartido(request, env, params.id);
+
+  return jsonResponse({ error: 'No encontrado.' }, 404);
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const { pathname } = url;
+    const { method } = request;
 
-    if (url.pathname === '/api/inscripcion' && request.method === 'POST') {
-      return handleInscripcion(request, env);
+    try {
+      if (pathname === '/api/inscripcion' && method === 'POST') return handleInscripcion(request, env);
+
+      if (pathname === '/api/equipos' && method === 'GET') return handleListEquipos(request, env);
+      if (pathname === '/api/clasificacion' && method === 'GET') return handleClasificacion(request, env);
+      if (pathname === '/api/partidos' && method === 'GET') return handlePartidos(request, env);
+
+      let params = matchPath('/api/equipos/:id', pathname);
+      if (params && method === 'GET') return handleGetEquipo(request, env, params.id);
+
+      params = matchPath('/api/jugadores/:id', pathname);
+      if (params && method === 'GET') return handleGetJugador(request, env, params.id);
+
+      if (pathname === '/api/admin/login' && method === 'POST') return handleLogin(request, env);
+      if (pathname === '/api/admin/logout' && method === 'POST') return handleLogout(request);
+      if (pathname === '/api/admin/me' && method === 'GET') return handleMe(request, env);
+
+      if (pathname.startsWith('/api/admin/')) return routeAdmin(request, env, pathname, method);
+
+      return new Response('Not found', { status: 404 });
+    } catch (err) {
+      return jsonResponse({ error: 'Error interno del servidor.' }, 500);
     }
-
-    return new Response('Not found', { status: 404 });
   },
 };

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clasificación y equipos — Turia Cup</title>
+<meta name="description" content="Clasificaciones, resultados y equipos participantes en Turia Cup.">
+<link rel="icon" type="image/png" href="img/brand/badge-black.png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/torneo.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo"><img src="img/brand/logo-lockup-black.png" alt="Turia Cup Valencia"></a>
+    <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="main-nav" id="mainNav">
+      <a href="index.html#torneo">El Torneo</a>
+      <a href="index.html#categorias">Categorías</a>
+      <a href="index.html#galeria">Galería</a>
+      <a href="index.html#videos">Vídeos</a>
+      <a href="torneo.html">Clasificación y equipos</a>
+      <a href="index.html#inscripcion" class="nav-cta">Inscribe tu equipo</a>
+    </nav>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+    <div class="page-header">
+      <h1>Clasificación y equipos</h1>
+      <p>Resultados, clasificaciones, fase final y plantillas de los equipos participantes.</p>
+    </div>
+
+    <div class="cat-pills" id="catPills">
+      <button class="cat-pill" data-cat="U9">U9</button>
+      <button class="cat-pill" data-cat="U10">U10</button>
+      <button class="cat-pill" data-cat="U11">U11</button>
+      <button class="cat-pill" data-cat="U12">U12</button>
+    </div>
+
+    <div class="tabs" id="sectionTabs">
+      <button class="tab-btn" data-tab="clasificacion">Clasificación y resultados</button>
+      <button class="tab-btn" data-tab="equipos">Equipos</button>
+    </div>
+
+    <div class="tab-panel" id="panelClasificacion">
+      <div id="gruposContainer"></div>
+
+      <h2 class="subsection-title">Próximos partidos</h2>
+      <div id="proximosContainer" class="match-list"></div>
+
+      <h2 class="subsection-title">Resultados</h2>
+      <div id="resultadosContainer" class="match-list"></div>
+
+      <h2 class="subsection-title">Fase final</h2>
+      <div class="phase-grid">
+        <div class="phase-block phase-oro">
+          <h3>Oro</h3>
+          <div class="match-list" id="faseOro"></div>
+        </div>
+        <div class="phase-block phase-plata">
+          <h3>Plata</h3>
+          <div class="match-list" id="fasePlata"></div>
+        </div>
+        <div class="phase-block phase-bronce">
+          <h3>Bronce</h3>
+          <div class="match-list" id="faseBronce"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panelEquipos" hidden>
+      <div class="team-grid" id="teamGrid"></div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p>&copy; <span id="year"></span> Turia Cup. Todos los derechos reservados.</p>
+    <p><a href="mailto:info@turiacup.com">info@turiacup.com</a></p>
+  </div>
+</footer>
+
+<script src="js/nav.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/torneo.js"></script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+}
+.admin-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  gap: 16px;
+}
+.admin-topbar-inner .logo img { height: 32px; }
+.admin-title { font-weight: 700; color: var(--blue-900); margin-right: auto; margin-left: 12px; }
+
+.login-box {
+  max-width: 380px;
+  margin: 60px auto;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+}
+.login-box h1 { font-size: 1.4rem; }
+.login-box .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.login-box label { font-size: .9rem; font-weight: 600; color: var(--blue-900); }
+.login-box input {
+  padding: 11px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.tab-btn {
+  padding: 12px 20px;
+  border: none;
+  background: none;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+.tab-btn.active { color: var(--blue-900); border-bottom-color: var(--blue-500); }
+.admin-panel[hidden] { display: none; }
+
+.admin-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.admin-toolbar select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: .95rem; }
+
+.btn-small {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.btn-small:hover { border-color: var(--blue-500); }
+.btn-small.primary { background: var(--blue-500); border-color: var(--blue-500); color: var(--white); }
+.btn-small.danger { color: #c0392b; border-color: #f2c9c2; }
+.btn-small.danger:hover { background: #fdf1ef; }
+.btn-small + .btn-small { margin-left: 6px; }
+
+.admin-table { width: 100%; border-collapse: collapse; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+.admin-table th, .admin-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: .92rem; vertical-align: middle; }
+.admin-table th { background: var(--blue-900); color: var(--white); font-size: .78rem; }
+.admin-table tbody tr:last-child td { border-bottom: none; }
+.admin-table td.actions { white-space: nowrap; text-align: right; }
+
+.inline-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.inline-form .form-row { display: flex; flex-direction: column; gap: 6px; }
+.inline-form label { font-size: .82rem; font-weight: 600; color: var(--blue-900); }
+.inline-form input, .inline-form select {
+  padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: .95rem; font-family: inherit;
+}
+.inline-form .form-actions { grid-column: 1 / -1; display: flex; gap: 10px; }
+
+.resultado-panel {
+  background: #fff8ef;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin: -6px 0 16px;
+}
+.resultado-scores { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.resultado-scores input { width: 64px; padding: 8px; text-align: center; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; }
+.goal-team-block { margin-bottom: 12px; }
+.goal-team-block h4 { margin: 0 0 8px; font-size: .9rem; }
+.goal-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.goal-row select { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
+.goal-row input { width: 60px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; }
+
+.feedback { font-weight: 600; margin: 10px 0; min-height: 1.2em; }
+.feedback.success { color: var(--green); }
+.feedback.error { color: #c0392b; }
+
+.upload-box { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
+.upload-box a { color: var(--blue-700); }
+.errores-list { color: #c0392b; font-size: .85rem; margin: 10px 0 0; padding-left: 18px; }
