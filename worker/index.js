@@ -9,6 +9,7 @@ import {
   handlePartidos,
 } from './routes/public.js';
 import {
+  handleImportarEquipos,
   handleGetAjustes,
   handleUpdateAjustes,
   handleCreateEquipo,
@@ -53,6 +54,7 @@ async function routeAdmin(request, env, pathname, method) {
   }
 
   if (pathname === '/api/admin/equipos' && method === 'POST') return handleCreateEquipo(request, env);
+  if (pathname === '/api/admin/equipos/importar' && method === 'POST') return handleImportarEquipos(request, env);
 
   params = matchPath('/api/admin/equipos/:id', pathname);
   if (params) {

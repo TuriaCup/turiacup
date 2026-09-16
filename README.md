@@ -145,6 +145,14 @@ Con eso, `wrangler dev` levanta el panel en `http://localhost:8787/admin.html`.
 1. **Equipos**: alta/edición/baja, con categoría (U9-U12), grupo de fase de grupos y ciudad.
 2. **Plantillas**: selecciona un equipo y sube su Excel (descarga el modelo desde el propio panel — columnas Dorsal, Nombre, Apellidos, Fecha de nacimiento, DNI). Cada subida sustituye la plantilla completa; los datos ya importados se pueden corregir fila a fila sin volver a subir el fichero. El DNI nunca se muestra en las páginas públicas.
 3. **Partidos**: alta de partido (categoría, fase — grupos u Oro/Plata/Bronce —, grupo o ronda, equipos, fecha, sede) y registro de resultado con los goleadores de cada equipo; los goles quedan asociados al perfil público de cada jugador. La clasificación de cada grupo se calcula automáticamente a partir de los partidos jugados, no hace falta mantenerla a mano.
+4. **Importar**: para cargas grandes. Pegas la lista de equipos copiada de Excel (Nombre · Categoría ·
+   Grupo · Ciudad, separados por tabulador o punto y coma) y los crea todos de una vez; el botón
+   «Comprobar sin guardar» te enseña antes qué se va a crear. Repetir el mismo pegado no duplica nada:
+   los equipos que ya existen se detectan (ignorando acentos y mayúsculas) y se dejan como están.
+   Debajo, la subida de plantillas en lote: seleccionas todos los Excel de los clubes a la vez, el panel
+   propone a qué equipo va cada fichero por su nombre (p. ej. `cf-inter-san-jose-u11.xlsx`), corriges lo
+   que haga falta en el desplegable y las sube todas seguidas.
+5. **Publicación**: el interruptor de modo interno (ver más abajo).
 
 ## Modo interno: preparar el torneo antes de publicarlo
 

@@ -7,6 +7,8 @@ const FASES_VALIDAS = ['grupos', 'oro', 'plata', 'bronce'];
 const TEAM_MAX_LEN = { name: 120, city: 120, logo_url: 500, group_name: 20 };
 const MATCH_MAX_LEN = { group_name: 20, round_name: 60, venue: 120 };
 const PLAYER_MAX_LEN = { nombre: 120, apellidos: 120, dni: 20 };
+const MAX_LINEAS_IMPORT = 500;
+const LOTE_IMPORT = 50;
 
 async function readJson(request) {
   try {
@@ -107,6 +109,101 @@ export async function handleDeleteEquipo(request, env, idParam) {
   return jsonResponse({ ok: true });
 }
 
+// --- Importación masiva de equipos ---
+
+/** Quita acentos y mayúsculas para comparar nombres de equipo. */
+function normalizarClave(value) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** Acepta "U10", "u10", "10" o "sub10" y devuelve siempre "U10". */
+function normalizarCategoria(value) {
+  const v = clean(value).toUpperCase().replace(/[\s.-]/g, '');
+  if (/^\d+$/.test(v)) return `U${v}`;
+  if (v.startsWith('SUB')) return `U${v.slice(3)}`;
+  return v;
+}
+
+function errorLongitudEquipo({ name, city, group_name }) {
+  for (const [field, max] of Object.entries(TEAM_MAX_LEN)) {
+    const value = { name, city, group_name, logo_url: '' }[field];
+    if (value && value.length > max) return `El campo ${field} es demasiado largo.`;
+  }
+  return null;
+}
+
+export async function handleImportarEquipos(request, env) {
+  const payload = await readJson(request);
+  if (!payload) return jsonResponse({ error: 'Solicitud inválida.' }, 400);
+
+  const texto = clean(payload.texto);
+  if (!texto) return jsonResponse({ error: 'Pega al menos una línea con los equipos.' }, 400);
+
+  const lineas = texto.split(/\r?\n/);
+  if (lineas.length > MAX_LINEAS_IMPORT) {
+    return jsonResponse({ error: `Demasiadas líneas de golpe (máx. ${MAX_LINEAS_IMPORT}).` }, 400);
+  }
+
+  const { results: existentes } = await env.DB.prepare('SELECT name, category FROM teams').all();
+  const yaEnBase = new Set(existentes.map((t) => `${normalizarClave(t.name)}|${t.category}`));
+
+  const nuevos = [];
+  const duplicados = [];
+  const errores = [];
+  const vistos = new Set();
+
+  lineas.forEach((linea, i) => {
+    const numero = i + 1;
+    if (!clean(linea)) return;
+
+    const partes = linea.split(/[\t;]/).map((parte) => clean(parte));
+    if (i === 0 && /^(nombre|equipo|club)$/i.test(partes[0] || '')) return; // fila de cabecera
+
+    const name = partes[0] || '';
+    const categoriaOriginal = partes[1] || '';
+    const category = normalizarCategoria(categoriaOriginal);
+    const group_name = (partes[2] || '').toUpperCase();
+    const city = partes[3] || '';
+
+    if (!name) {
+      errores.push({ linea: numero, message: 'Falta el nombre del equipo.' });
+      return;
+    }
+    if (!CATEGORIAS_VALIDAS.includes(category)) {
+      errores.push({
+        linea: numero,
+        message: `Categoría no válida: "${categoriaOriginal}". Usa U9, U10, U11 o U12.`,
+      });
+      return;
+    }
+    const errorLongitud = errorLongitudEquipo({ name, city, group_name });
+    if (errorLongitud) {
+      errores.push({ linea: numero, message: errorLongitud });
+      return;
+    }
+
+    const clave = `${normalizarClave(name)}|${category}`;
+    if (yaEnBase.has(clave) || vistos.has(clave)) {
+      duplicados.push({ linea: numero, name, category });
+      return;
+    }
+    vistos.add(clave);
+    nuevos.push({ name, category, group_name: group_name || null, city: city || null });
+  });
+
+  if (payload.previsualizar === true) {
+    return jsonResponse({ previsualizacion: true, creados: 0, nuevos, duplicados, errores });
+  }
+
+  for (let i = 0; i < nuevos.length; i += LOTE_IMPORT) {
+    await env.DB.batch(nuevos.slice(i, i + LOTE_IMPORT).map((t) => env.DB.prepare(
+      'INSERT INTO teams (name, category, city, logo_url, group_name) VALUES (?, ?, ?, ?, ?)'
+    ).bind(t.name, t.category, t.city, null, t.group_name)));
+  }
+
+  return jsonResponse({ ok: true, creados: nuevos.length, nuevos, duplicados, errores });
+}
+
 // --- Jugadores / plantillas ---
 
 export async function handleListJugadoresAdmin(request, env, teamIdParam) {
@@ -150,7 +247,10 @@ export async function handleUploadPlantilla(request, env, teamIdParam) {
     return jsonResponse({ error: 'No se encontraron filas válidas en el Excel.', errores: errors }, 400);
   }
 
-  const statements = [env.DB.prepare('DELETE FROM players WHERE team_id = ?').bind(teamId)];
+  const statements = [
+    env.DB.prepare('DELETE FROM goals WHERE player_id IN (SELECT id FROM players WHERE team_id = ?)').bind(teamId),
+    env.DB.prepare('DELETE FROM players WHERE team_id = ?').bind(teamId),
+  ];
   for (const row of rows) {
     statements.push(
       env.DB.prepare(

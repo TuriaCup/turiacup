@@ -25,7 +25,9 @@ Base de datos: **Cloudflare D1** (`turiacup-db`, binding `DB`). Email: Resend.
   `/api/clasificacion`, `/api/partidos`. Sin auth, pero todas pasan por `estadoPublicacion`
   (`worker/lib/ajustes.js`) y devuelven `{ publicado, visible }`: si el torneo no está publicado y
   quien pide no es el admin, responden 200 con `visible: false` y los datos vacíos.
-- `worker/routes/admin.js` — CRUD de equipos, jugadores/plantillas y partidos/resultados.
+- `worker/routes/admin.js` — CRUD de equipos, jugadores/plantillas y partidos/resultados, más
+  `POST /api/admin/equipos/importar` (alta masiva de equipos desde texto pegado; con
+  `previsualizar: true` no escribe nada) y `GET/PUT /api/admin/ajustes` (interruptor de publicación).
 - `worker/lib/` — `http.js` (respuestas JSON, `clean`, `escapeHtml`, `parseId`),
   `auth.js` (cookie de sesión firmada con HMAC-SHA256), `xlsx.js` (parseo del Excel de plantillas),
   `ajustes.js` (interruptor `torneo_publico` y `estadoPublicacion`).
@@ -89,15 +91,20 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **`public/js/*.js` son scripts clásicos, no módulos**: las funciones de `utils.js`
   (`escapeHtml`, `fetchJson`, `formatFecha…`) son globales y `utils.js` debe ir **antes** del
   script de la página en el HTML. En `worker/` sí se usan `import`/`export` de ESM.
-- **Subir una plantilla Excel reemplaza la plantilla entera**: `handleUploadPlantilla` hace
-  `DELETE FROM players WHERE team_id = ?` y reinserta, así que los `players.id` cambian.
-  A diferencia de `handleDeleteJugador`, no borra antes las filas de `goals` que los
-  referencian. Resubir el Excel de un equipo con goles ya registrados es terreno delicado.
+- **Subir una plantilla Excel reemplaza la plantilla entera**: `handleUploadPlantilla` borra los
+  `goals` de los jugadores del equipo, luego `DELETE FROM players WHERE team_id = ?` y reinserta,
+  así que los `players.id` cambian. Resubir el Excel de un equipo con partidos ya jugados le borra
+  los goleadores: hay que volver a guardar esos resultados.
 - **Guardar un resultado reescribe los goleadores**: `handleResultadoPartido` borra todos los
   `goals` del partido y vuelve a insertar los que lleguen. Mandar el marcador sin la lista
   `goals` deja el partido sin goleadores.
 - **La clasificación no se almacena**: se calcula al vuelo con los partidos de `phase='grupos'`
   y `played=1`. Desempate: puntos → diferencia de goles → goles a favor → nombre.
+- **La ruta `/api/admin/equipos/importar` va antes que `/api/admin/equipos/:id`** en `routeAdmin`.
+  Si se invierte el orden, `importar` cae en el comodín `:id` y responde «Id inválido».
+- **La subida de plantillas en lote es solo frontend**: `public/js/admin.js` adivina el equipo por el
+  nombre del fichero (`proponerEquipo`) y va llamando al endpoint de siempre, uno a uno. No hay
+  endpoint de lote en el Worker.
 - **`CATEGORIAS_VALIDAS` (`U9`-`U12`) está duplicada en cuatro sitios**: los tres ficheros de
   `worker/routes/` y `public/js/admin.js`. Añadir o quitar una categoría exige tocarlos todos.
 - **El DNI nunca sale por la API pública**: `public.js` no lo selecciona. Solo aparece en

@@ -155,3 +155,29 @@
 .publicacion-box h2 { margin-top: 0; }
 .publicacion-box ul { padding-left: 18px; color: var(--text-muted); }
 .publicacion-box .form-actions { margin-top: 20px; }
+
+/* Importación en lote */
+.import-box {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+  max-width: 900px;
+}
+.import-box h2 { margin-top: 0; }
+.import-box h3 { margin: 20px 0 8px; }
+.import-box p { color: var(--text-muted); }
+.import-formato { font-size: .9rem; }
+.import-box textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .9rem;
+  resize: vertical;
+}
+.import-box input[type="file"] { margin: 8px 0 16px; }
+.import-lista { color: var(--text-muted); font-size: .9rem; margin: 8px 0 0; padding-left: 18px; }
+.lote-estado { white-space: nowrap; }

@@ -23,8 +23,11 @@ const panels = {
   equipos: document.getElementById('panelEquipos'),
   plantillas: document.getElementById('panelPlantillas'),
   partidos: document.getElementById('panelPartidos'),
+  importar: document.getElementById('panelImportar'),
   publicacion: document.getElementById('panelPublicacion'),
 };
+
+let loteArchivos = [];
 
 let torneoPublico = false;
 
@@ -104,6 +107,7 @@ function showTab(tab) {
   if (tab === 'equipos') renderEquiposTab();
   if (tab === 'plantillas') renderPlantillasTab();
   if (tab === 'partidos') renderPartidosTab();
+  if (tab === 'importar') renderImportarTab();
   if (tab === 'publicacion') renderPublicacionTab();
 }
 
@@ -161,6 +165,208 @@ async function togglePublicacion() {
     feedback.textContent = err.message;
     feedback.classList.add('error');
   }
+}
+
+// --- Importar (equipos en lote y plantillas en lote) ---
+
+function renderImportarTab() {
+  panels.importar.innerHTML = `
+    <div class="import-box">
+      <h2>Importar equipos</h2>
+      <p>Pega la lista de equipos, uno por línea. Si copias las celdas directamente desde Excel,
+      pégalas aquí tal cual: ya vienen separadas por tabuladores.</p>
+      <p class="import-formato">Orden de las columnas: <strong>Nombre · Categoría · Grupo · Ciudad</strong>.
+      Nombre y categoría son obligatorios; grupo y ciudad pueden ir vacíos.
+      Si la primera línea es la de los títulos, se ignora sola.</p>
+      <textarea id="importTexto" rows="10" spellcheck="false"
+        placeholder="CF Inter San José&#9;U10&#9;A&#9;Valencia&#10;Valencia CF&#9;U11&#9;B&#9;Valencia"></textarea>
+      <div class="form-actions">
+        <button class="btn-small" id="comprobarImportBtn">Comprobar sin guardar</button>
+        <button class="btn-small primary" id="importarBtn">Importar</button>
+      </div>
+      <p class="feedback" id="importFeedback"></p>
+      <div id="importResultado"></div>
+    </div>
+
+    <div class="import-box">
+      <h2>Subir varias plantillas a la vez</h2>
+      <p>Selecciona todos los Excel que te hayan mandado los clubes. Intento adivinar a qué equipo
+      corresponde cada fichero por su nombre; <strong>revisa la asignación antes de subir</strong> y
+      corrige lo que haga falta.</p>
+      <p class="import-formato">Cada Excel sustituye la plantilla completa de ese equipo, y si ese
+      equipo ya tenía goles registrados, se borran con ella.</p>
+      <input type="file" id="loteFiles" accept=".xlsx" multiple>
+      <div id="loteTabla"></div>
+      <div class="form-actions">
+        <button class="btn-small primary" id="subirLoteBtn" hidden>Subir todas</button>
+      </div>
+      <p class="feedback" id="loteFeedback"></p>
+    </div>
+  `;
+
+  document.getElementById('comprobarImportBtn').addEventListener('click', () => enviarImportEquipos(true));
+  document.getElementById('importarBtn').addEventListener('click', () => enviarImportEquipos(false));
+  document.getElementById('loteFiles').addEventListener('change', (e) => prepararLote(e.target.files));
+  document.getElementById('subirLoteBtn').addEventListener('click', subirLote);
+}
+
+async function enviarImportEquipos(previsualizar) {
+  const texto = document.getElementById('importTexto').value;
+  const feedback = document.getElementById('importFeedback');
+  const resultado = document.getElementById('importResultado');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  resultado.innerHTML = '';
+
+  if (!previsualizar && !confirm('¿Crear en la web los equipos de la lista?')) return;
+
+  try {
+    const res = await fetchJson('/api/admin/equipos/importar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto, previsualizar }),
+    });
+
+    const nuevos = res.nuevos || [];
+    feedback.textContent = previsualizar
+      ? `Se crearían ${nuevos.length} equipos. Nada guardado todavía.`
+      : `Creados ${res.creados} equipos.`;
+    feedback.classList.add(res.errores.length ? 'error' : 'success');
+
+    resultado.innerHTML = `
+      ${nuevos.length ? `
+        <h3>${previsualizar ? 'Se crearían' : 'Creados'} (${nuevos.length})</h3>
+        <table class="admin-table">
+          <thead><tr><th>Nombre</th><th>Categoría</th><th>Grupo</th><th>Ciudad</th></tr></thead>
+          <tbody>${nuevos.map((t) => `
+            <tr>
+              <td>${escapeHtml(t.name)}</td>
+              <td>${escapeHtml(t.category)}</td>
+              <td>${t.group_name ? escapeHtml(t.group_name) : ''}</td>
+              <td>${t.city ? escapeHtml(t.city) : ''}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : ''}
+      ${res.duplicados.length ? `
+        <h3>Ya existían, no se tocan (${res.duplicados.length})</h3>
+        <ul class="import-lista">${res.duplicados.map((d) =>
+          `<li>Línea ${d.linea}: ${escapeHtml(d.name)} (${escapeHtml(d.category)})</li>`).join('')}</ul>` : ''}
+      ${res.errores.length ? `
+        <h3>Líneas con problemas (${res.errores.length})</h3>
+        <ul class="errores-list">${res.errores.map((e) =>
+          `<li>Línea ${e.linea}: ${escapeHtml(e.message)}</li>`).join('')}</ul>` : ''}
+    `;
+
+    if (!previsualizar && res.creados > 0) await loadTeamsCache();
+  } catch (err) {
+    feedback.textContent = err.message;
+    feedback.classList.add('error');
+  }
+}
+
+function normalizarTexto(value) {
+  return String(value ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** Adivina a qué equipo pertenece un fichero por su nombre. Devuelve null si no lo tiene claro. */
+function proponerEquipo(nombreFichero) {
+  const base = normalizarTexto(nombreFichero.replace(/\.xlsx$/i, ''));
+  const cat = base.match(/\bu\s?(9|10|11|12)\b/);
+  const categoria = cat ? `U${cat[1]}` : null;
+
+  let candidatos = teamsCache.filter((t) => base.includes(normalizarTexto(t.name)));
+  if (categoria) {
+    const mismaCategoria = candidatos.filter((t) => t.category === categoria);
+    if (mismaCategoria.length) candidatos = mismaCategoria;
+  }
+  if (candidatos.length === 1) return candidatos[0];
+  if (!candidatos.length) return null;
+
+  // varios encajan: gana el nombre más largo, y solo si no hay empate
+  candidatos.sort((a, b) => normalizarTexto(b.name).length - normalizarTexto(a.name).length);
+  const largo = normalizarTexto(candidatos[0].name).length;
+  const empatados = candidatos.filter((t) => normalizarTexto(t.name).length === largo);
+  return empatados.length === 1 ? candidatos[0] : null;
+}
+
+function prepararLote(fileList) {
+  loteArchivos = [...fileList].map((file) => ({ file, equipo: proponerEquipo(file.name) }));
+  const tabla = document.getElementById('loteTabla');
+  const boton = document.getElementById('subirLoteBtn');
+
+  if (!loteArchivos.length) {
+    tabla.innerHTML = '';
+    boton.hidden = true;
+    return;
+  }
+
+  const sinAsignar = loteArchivos.filter((a) => !a.equipo).length;
+  tabla.innerHTML = `
+    ${sinAsignar ? `<p class="feedback error">No he sabido a qué equipo van ${sinAsignar} fichero(s): elígelo a mano.</p>` : ''}
+    <table class="admin-table">
+      <thead><tr><th>Fichero</th><th>Equipo</th><th>Estado</th></tr></thead>
+      <tbody>${loteArchivos.map((a, i) => `
+        <tr data-i="${i}">
+          <td>${escapeHtml(a.file.name)}</td>
+          <td>
+            <select data-field="equipo">
+              <option value="">— elegir equipo —</option>
+              ${teamsCache.map((t) => `
+                <option value="${t.id}" ${a.equipo && a.equipo.id === t.id ? 'selected' : ''}>
+                  ${escapeHtml(t.name)} (${t.category})
+                </option>`).join('')}
+            </select>
+          </td>
+          <td class="lote-estado">${a.equipo ? 'Listo' : 'Sin asignar'}</td>
+        </tr>`).join('')}</tbody>
+    </table>
+  `;
+  boton.hidden = false;
+}
+
+async function subirLote() {
+  const filas = [...document.querySelectorAll('#loteTabla tbody tr')];
+  const feedback = document.getElementById('loteFeedback');
+  const boton = document.getElementById('subirLoteBtn');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+
+  const pendientes = filas.filter((fila) => fila.querySelector('select').value);
+  if (!pendientes.length) {
+    feedback.textContent = 'Asigna al menos un fichero a un equipo.';
+    feedback.classList.add('error');
+    return;
+  }
+  if (!confirm(`¿Subir ${pendientes.length} plantilla(s)? Se sustituye la plantilla completa de cada equipo.`)) return;
+
+  boton.disabled = true;
+  let subidas = 0;
+  let conFallo = 0;
+
+  for (const fila of pendientes) {
+    const indice = Number(fila.dataset.i);
+    const teamId = fila.querySelector('select').value;
+    const estado = fila.querySelector('.lote-estado');
+    estado.textContent = 'Subiendo…';
+
+    const fd = new FormData();
+    fd.append('file', loteArchivos[indice].file);
+    try {
+      const res = await fetchJson(`/api/admin/equipos/${teamId}/plantilla`, { method: 'POST', body: fd });
+      estado.textContent = `✅ ${res.importados} jugadores`
+        + (res.errores.length ? ` · ${res.errores.length} filas con errores` : '');
+      subidas++;
+    } catch (err) {
+      estado.textContent = `❌ ${err.message}`;
+      conFallo++;
+    }
+    feedback.textContent = `Subiendo… ${subidas + conFallo} de ${pendientes.length}`;
+  }
+
+  boton.disabled = false;
+  feedback.textContent = `Terminado: ${subidas} plantilla(s) subida(s)`
+    + (conFallo ? `, ${conFallo} con error (mira la columna Estado).` : '.');
+  feedback.classList.add(conFallo ? 'error' : 'success');
 }
 
 // --- Equipos ---
