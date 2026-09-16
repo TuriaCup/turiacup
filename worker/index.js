@@ -37,13 +37,33 @@ import {
  */
 async function servirPaginaPlantilla(request, env, slug) {
   const destino = new URL('/subir-plantilla.html', request.url);
+
   try {
     if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
-      return await env.ASSETS.fetch(new Request(destino, request));
+      let res = await env.ASSETS.fetch(new Request(destino, { method: 'GET' }));
+
+      // Los assets pueden contestar con una redirección a la versión sin `.html`.
+      // Hay que seguirla aquí dentro: si se la devolvemos al navegador, se va a esa otra
+      // dirección y pierde el código del enlace (/plantilla/<slug>).
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get('Location');
+        if (location) {
+          res = await env.ASSETS.fetch(new Request(new URL(location, request.url), { method: 'GET' }));
+        }
+      }
+
+      if (res.ok) {
+        return new Response(res.body, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      }
     }
   } catch {
-    // seguimos con la redirección
+    // seguimos con la redirección de abajo
   }
+
+  // Último recurso: mandamos el navegador a la página con el código en la dirección.
   destino.searchParams.set('c', slug);
   return Response.redirect(destino.toString(), 302);
 }
