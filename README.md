@@ -187,9 +187,11 @@ En la pestaña **Entregas** del panel:
   modificarla (pensado para el día antes del torneo). Se puede volver a abrir cuando quieras. Tú sí puedes
   seguir editando cualquier plantilla desde la pestaña Plantillas, con el plazo abierto o cerrado.
 
-El DNI que rellenan los clubes **nunca sale en las páginas públicas**: solo se ve desde el panel y desde el
-propio enlace del club. En la ficha pública del equipo aparecen la plantilla (sin DNI) y el cuerpo técnico
-con su cargo.
+**Datos de menores en las páginas públicas**: no se publica ni el DNI ni la fecha de nacimiento. De la
+fecha solo sale el **año** (suficiente para ver que un jugador encaja en su categoría), y ni siquiera viaja
+la fecha completa en la respuesta de la API. El dato completo solo se ve desde el panel y desde el enlace
+privado del propio club. En la ficha pública del equipo aparecen la plantilla (dorsal, nombre y año) y el
+cuerpo técnico con su cargo.
 
 ## Modo interno: preparar el torneo antes de publicarlo
 

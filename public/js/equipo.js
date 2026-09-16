@@ -52,7 +52,7 @@ async function load() {
           <tr>
             <td>${j.dorsal ?? ''}</td>
             <td><a href="jugador.html?id=${j.id}">${escapeHtml(j.nombre)} ${escapeHtml(j.apellidos)}</a></td>
-            <td>${j.fecha_nacimiento ? formatFecha(j.fecha_nacimiento) : ''}</td>
+            <td>${j.anio_nacimiento ? escapeHtml(j.anio_nacimiento) : ''}</td>
           </tr>
         `).join('')
       : '';
@@ -72,7 +72,7 @@ async function load() {
       <h2>Plantilla</h2>
       ${jugadores.length ? `
         <table class="roster-table">
-          <thead><tr><th>Dorsal</th><th>Jugador</th><th>Fecha de nacimiento</th></tr></thead>
+          <thead><tr><th>Dorsal</th><th>Jugador</th><th>Año de nacimiento</th></tr></thead>
           <tbody>${rosterRows}</tbody>
         </table>
       ` : '<p class="empty-state">Plantilla aún no publicada.</p>'}

@@ -35,7 +35,7 @@ export async function handleGetEquipo(request, env, idParam) {
   if (!equipo) return jsonResponse({ error: 'Equipo no encontrado.' }, 404);
 
   const { results: jugadores } = await env.DB.prepare(
-    `SELECT id, dorsal, nombre, apellidos, fecha_nacimiento FROM players
+    `SELECT id, dorsal, nombre, apellidos, substr(fecha_nacimiento, 1, 4) AS anio_nacimiento FROM players
      WHERE team_id = ? ORDER BY dorsal IS NULL, dorsal, apellidos`
   ).bind(id).all();
 
@@ -74,7 +74,8 @@ export async function handleGetJugador(request, env, idParam) {
   if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
 
   const jugador = await env.DB.prepare(
-    `SELECT p.id, p.dorsal, p.nombre, p.apellidos, p.fecha_nacimiento, p.team_id, t.name AS team_name, t.category
+    `SELECT p.id, p.dorsal, p.nombre, p.apellidos, substr(p.fecha_nacimiento, 1, 4) AS anio_nacimiento,
+            p.team_id, t.name AS team_name, t.category
      FROM players p JOIN teams t ON t.id = p.team_id WHERE p.id = ?`
   ).bind(id).first();
   if (!jugador) return jsonResponse({ error: 'Jugador no encontrado.' }, 404);

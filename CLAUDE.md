@@ -113,8 +113,10 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
   endpoint de lote en el Worker.
 - **`CATEGORIAS_VALIDAS` (`U9`-`U12`) está duplicada en cuatro sitios**: los tres ficheros de
   `worker/routes/` y `public/js/admin.js`. Añadir o quitar una categoría exige tocarlos todos.
-- **El DNI nunca sale por la API pública**: `public.js` no lo selecciona. Solo aparece en
-  `/api/admin/equipos/:id/jugadores`. Mantenlo así.
+- **Ni el DNI ni la fecha de nacimiento salen por la API pública**: `public.js` no selecciona `dni`, y de
+  la fecha solo devuelve `substr(fecha_nacimiento, 1, 4) AS anio_nacimiento`. El dato completo solo está en
+  `/api/admin/equipos/:id/jugadores` y en `/api/plantilla/:slug` (el enlace del propio club). Mantenlo así:
+  son datos de menores.
 - **`wrangler d1 execute` sin `--remote` va a la base local** de `.wrangler/`, no a producción.
 - **`subidas_abiertas` falla en ABIERTO**, al revés que `torneo_publico`: si falta la clave o peta la
   consulta, los clubes pueden seguir entregando. El enlace ya es el secreto; el plazo es comodidad, no

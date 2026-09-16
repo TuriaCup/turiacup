@@ -40,7 +40,7 @@ async function load() {
             ${jugador.dorsal ? `Dorsal ${jugador.dorsal} · ` : ''}
             <a href="equipo.html?id=${jugador.team_id}">${escapeHtml(jugador.team_name)}</a>
             · ${escapeHtml(jugador.category)}
-            ${jugador.fecha_nacimiento ? ` · Nacido el ${formatFecha(jugador.fecha_nacimiento)}` : ''}
+            ${jugador.anio_nacimiento ? ` · Nacido en ${escapeHtml(jugador.anio_nacimiento)}` : ''}
           </div>
         </div>
       </div>
