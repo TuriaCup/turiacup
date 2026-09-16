@@ -120,3 +120,38 @@
 .upload-box { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
 .upload-box a { color: var(--blue-700); }
 .errores-list { color: #c0392b; font-size: .85rem; margin: 10px 0 0; padding-left: 18px; }
+
+/* Estado de publicación */
+.estado-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  margin-bottom: 20px;
+  border: 1px solid transparent;
+}
+.estado-banner.interno {
+  background: #fff6e5;
+  border-color: var(--accent);
+  color: var(--blue-900);
+}
+.estado-banner.publicado {
+  background: #e8f7ef;
+  border-color: var(--green);
+  color: #14603a;
+}
+.estado-banner[hidden] { display: none; }
+
+.publicacion-box {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 720px;
+}
+.publicacion-box h2 { margin-top: 0; }
+.publicacion-box ul { padding-left: 18px; color: var(--text-muted); }
+.publicacion-box .form-actions { margin-top: 20px; }

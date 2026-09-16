@@ -33,3 +33,18 @@ async function fetchJson(url, options) {
   }
   return body;
 }
+
+function noPublicadoHtml() {
+  return `
+    <div class="proximamente">
+      <h2>Próximamente</h2>
+      <p>Esta información se publicará unas semanas antes del torneo.
+      Mientras tanto, puedes <a href="index.html#inscripcion">inscribir a tu equipo</a>.</p>
+    </div>
+  `;
+}
+
+function avisoInternoHtml() {
+  return '<div class="aviso-interno">🔒 Vista interna: el torneo todavía no es público. '
+    + 'Lo estás viendo porque tienes la sesión de administrador abierta.</div>';
+}

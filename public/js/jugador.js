@@ -8,7 +8,13 @@ async function load() {
   }
 
   try {
-    const { jugador, totalGoles, goles } = await fetchJson(`/api/jugadores/${encodeURIComponent(playerId)}`);
+    const { publicado, visible, jugador, totalGoles, goles } =
+      await fetchJson(`/api/jugadores/${encodeURIComponent(playerId)}`);
+
+    if (!visible) {
+      content.innerHTML = noPublicadoHtml();
+      return;
+    }
 
     document.title = `${jugador.nombre} ${jugador.apellidos} — Turia Cup`;
 
@@ -26,6 +32,7 @@ async function load() {
       : '<p class="empty-state">Todavía no ha marcado goles.</p>';
 
     content.innerHTML = `
+      ${publicado ? '' : avisoInternoHtml()}
       <div class="entity-header">
         <div>
           <h1>${escapeHtml(jugador.nombre)} ${escapeHtml(jugador.apellidos)}</h1>

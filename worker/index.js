@@ -9,6 +9,8 @@ import {
   handlePartidos,
 } from './routes/public.js';
 import {
+  handleGetAjustes,
+  handleUpdateAjustes,
   handleCreateEquipo,
   handleUpdateEquipo,
   handleDeleteEquipo,
@@ -44,6 +46,11 @@ async function routeAdmin(request, env, pathname, method) {
   if (unauthorized) return unauthorized;
 
   let params;
+
+  if (pathname === '/api/admin/ajustes') {
+    if (method === 'GET') return handleGetAjustes(request, env);
+    if (method === 'PUT') return handleUpdateAjustes(request, env);
+  }
 
   if (pathname === '/api/admin/equipos' && method === 'POST') return handleCreateEquipo(request, env);
 

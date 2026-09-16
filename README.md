@@ -15,6 +15,7 @@ Cloudflare Worker con assets estáticos + D1 para el formulario de inscripción 
 - Ficha de equipo (`equipo.html`) con plantilla, próximos partidos y partidos jugados
 - Ficha de jugador (`jugador.html`) con goles totales y desglose por partido
 - Panel de administración (`admin.html`, sin enlace público — acceso por URL directa) para gestionar equipos, plantillas (subida por Excel) y partidos/resultados/goleadores
+- **Modo interno**: el torneo arranca oculto al público y se publica cuando tú quieras desde la pestaña «Publicación» del panel (ver más abajo)
 - Ver "Configurar el módulo de torneo" más abajo para desplegarlo
 
 **Pendiente:**
@@ -32,6 +33,7 @@ Cloudflare Worker con assets estáticos + D1 para el formulario de inscripción 
 - `worker/lib/http.js`, `worker/lib/auth.js`, `worker/lib/xlsx.js` — utilidades compartidas, sesión de admin y parseo de Excel
 - `schema.sql` — esquema de la tabla `inscripciones`
 - `schema_torneo.sql` — esquema del módulo de torneo (`teams`, `players`, `matches`, `goals`)
+- `schema_ajustes.sql` — esquema de la tabla `settings` (interruptor de publicación del torneo)
 - `wrangler.toml` — configuración del Worker, el directorio de assets y el binding a D1
 
 ## Requisitos previos
@@ -54,6 +56,7 @@ Aplica el esquema:
 ```bash
 wrangler d1 execute turiacup-db --remote --file=./schema.sql
 wrangler d1 execute turiacup-db --remote --file=./schema_torneo.sql
+wrangler d1 execute turiacup-db --remote --file=./schema_ajustes.sql
 ```
 
 (usa `--local` en vez de `--remote` para probar en tu máquina)
@@ -142,6 +145,25 @@ Con eso, `wrangler dev` levanta el panel en `http://localhost:8787/admin.html`.
 1. **Equipos**: alta/edición/baja, con categoría (U9-U12), grupo de fase de grupos y ciudad.
 2. **Plantillas**: selecciona un equipo y sube su Excel (descarga el modelo desde el propio panel — columnas Dorsal, Nombre, Apellidos, Fecha de nacimiento, DNI). Cada subida sustituye la plantilla completa; los datos ya importados se pueden corregir fila a fila sin volver a subir el fichero. El DNI nunca se muestra en las páginas públicas.
 3. **Partidos**: alta de partido (categoría, fase — grupos u Oro/Plata/Bronce —, grupo o ronda, equipos, fecha, sede) y registro de resultado con los goleadores de cada equipo; los goles quedan asociados al perfil público de cada jugador. La clasificación de cada grupo se calcula automáticamente a partir de los partidos jugados, no hace falta mantenerla a mano.
+
+## Modo interno: preparar el torneo antes de publicarlo
+
+El módulo de torneo tiene un interruptor global, en la pestaña **Publicación** del panel de admin:
+
+- **🔒 Modo interno** (valor de fábrica): puedes crear equipos, asignar grupos, subir plantillas y cargar
+  el calendario con tranquilidad. Quien entre en `turiacup.com/torneo.html` verá un aviso de
+  «Próximamente», y las fichas de equipo y de jugador tampoco se abren desde fuera. Tú, con la sesión de
+  admin iniciada en ese mismo navegador, sigues viendo todo el torneo con un aviso naranja de «vista
+  interna», así que puedes revisarlo tal y como quedará.
+- **🌍 Publicado**: equipos, grupos, plantillas, calendario, resultados y clasificaciones pasan a ser
+  visibles para todo el mundo.
+
+Se cambia con un botón y tiene efecto inmediato, sin desplegar nada. Se puede volver atrás en cualquier
+momento (vuelve a ocultarlo todo, no se borra nada). La landing y el formulario de inscripción funcionan
+igual en los dos modos: este interruptor no los afecta.
+
+El estado se guarda en la tabla `settings` de D1 (`torneo_publico` = `0` o `1`), que se crea con
+`schema_ajustes.sql` en el paso 1. Si esa tabla no existiera, el torneo se comporta como no publicado.
 
 ## Próximos pasos (fuera del alcance actual)
 

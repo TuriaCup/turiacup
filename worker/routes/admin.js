@@ -1,5 +1,6 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { parseRosterExcel } from '../lib/xlsx.js';
+import { isTorneoPublico, setTorneoPublico } from '../lib/ajustes.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 const FASES_VALIDAS = ['grupos', 'oro', 'plata', 'bronce'];
@@ -13,6 +14,22 @@ async function readJson(request) {
   } catch {
     return null;
   }
+}
+
+// --- Ajustes / publicación ---
+
+export async function handleGetAjustes(request, env) {
+  return jsonResponse({ torneo_publico: await isTorneoPublico(env) });
+}
+
+export async function handleUpdateAjustes(request, env) {
+  const payload = await readJson(request);
+  if (!payload || typeof payload.torneo_publico !== 'boolean') {
+    return jsonResponse({ error: 'Indica si el torneo debe ser público (true o false).' }, 400);
+  }
+
+  await setTorneoPublico(env, payload.torneo_publico);
+  return jsonResponse({ ok: true, torneo_publico: payload.torneo_publico });
 }
 
 // --- Equipos ---

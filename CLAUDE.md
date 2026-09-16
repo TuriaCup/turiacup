@@ -22,10 +22,13 @@ Base de datos: **Cloudflare D1** (`turiacup-db`, binding `DB`). Email: Resend.
   500 genérico **sin log**: si algo falla en silencio, reprodúcelo con `wrangler dev`.
 - `worker/routes/inscripcion.js` — `POST /api/inscripcion` (valida, guarda en D1, avisa por email).
 - `worker/routes/public.js` — `/api/equipos`, `/api/equipos/:id`, `/api/jugadores/:id`,
-  `/api/clasificacion`, `/api/partidos`. Sin auth.
+  `/api/clasificacion`, `/api/partidos`. Sin auth, pero todas pasan por `estadoPublicacion`
+  (`worker/lib/ajustes.js`) y devuelven `{ publicado, visible }`: si el torneo no está publicado y
+  quien pide no es el admin, responden 200 con `visible: false` y los datos vacíos.
 - `worker/routes/admin.js` — CRUD de equipos, jugadores/plantillas y partidos/resultados.
 - `worker/lib/` — `http.js` (respuestas JSON, `clean`, `escapeHtml`, `parseId`),
-  `auth.js` (cookie de sesión firmada con HMAC-SHA256), `xlsx.js` (parseo del Excel de plantillas).
+  `auth.js` (cookie de sesión firmada con HMAC-SHA256), `xlsx.js` (parseo del Excel de plantillas),
+  `ajustes.js` (interruptor `torneo_publico` y `estadoPublicacion`).
 - `public/` — sitio estático servido tal cual: `index.html` (landing), `torneo.html`,
   `equipo.html`, `jugador.html`, `admin.html`, más `css/`, `js/`, `img/` y
   `plantillas/plantilla-modelo.xlsx`.
@@ -55,6 +58,9 @@ Worker, nunca en `wrangler.toml`; en local van en `.dev.vars` (ignorado por git)
   - **`matches`**: partido (`category`, `phase` = `grupos`/`oro`/`plata`/`bronce`,
     `group_name` o `round_name`, equipos, marcador, `played`, `scheduled_at`, `venue`).
   - **`goals`**: goles de un jugador en un partido (`count` = cuántos).
+- `schema_ajustes.sql` — tabla **`settings`** (`key`/`value`): de momento solo la clave
+  `torneo_publico` (`'0'` = modo interno, `'1'` = publicado), que se cambia desde la pestaña
+  «Publicación» del panel.
 
 Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a mano con
 `wrangler d1 execute`. No hay sistema de migraciones: un cambio de esquema es SQL manual.
@@ -97,3 +103,10 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **El DNI nunca sale por la API pública**: `public.js` no lo selecciona. Solo aparece en
   `/api/admin/equipos/:id/jugadores`. Mantenlo así.
 - **`wrangler d1 execute` sin `--remote` va a la base local** de `.wrangler/`, no a producción.
+- **El modo interno falla en cerrado**: si la tabla `settings` no existe o la consulta peta,
+  `isTorneoPublico` devuelve `false`, es decir, el torneo queda oculto (nunca se filtra por error).
+  `setTorneoPublico` hace `CREATE TABLE IF NOT EXISTS` antes de escribir, así que el panel funciona
+  aunque nadie haya aplicado `schema_ajustes.sql`.
+- **El admin ve el torneo aunque no esté publicado**: `estadoPublicacion` deja pasar las peticiones con
+  cookie de sesión válida. Si tocas las rutas públicas, mantén ese comportamiento o el panel (que usa
+  `/api/equipos` y `/api/partidos`) se queda sin datos.

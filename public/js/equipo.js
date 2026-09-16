@@ -37,7 +37,13 @@ async function load() {
   }
 
   try {
-    const { equipo, jugadores, proximos, jugados } = await fetchJson(`/api/equipos/${encodeURIComponent(teamId)}`);
+    const { publicado, visible, equipo, jugadores, proximos, jugados } =
+      await fetchJson(`/api/equipos/${encodeURIComponent(teamId)}`);
+
+    if (!visible) {
+      content.innerHTML = noPublicadoHtml();
+      return;
+    }
 
     document.title = `${equipo.name} — Turia Cup`;
 
@@ -52,6 +58,7 @@ async function load() {
       : '';
 
     content.innerHTML = `
+      ${publicado ? '' : avisoInternoHtml()}
       <div class="entity-header">
         ${equipo.logo_url ? `<img src="${escapeHtml(equipo.logo_url)}" alt="">` : ''}
         <div>

@@ -1,8 +1,12 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
+import { estadoPublicacion } from '../lib/ajustes.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 
 export async function handleListEquipos(request, env) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible, equipos: [] });
+
   const url = new URL(request.url);
   const categoria = clean(url.searchParams.get('categoria') || '').toUpperCase();
 
@@ -15,10 +19,13 @@ export async function handleListEquipos(request, env) {
   query += ' ORDER BY category, group_name, name';
 
   const { results } = await env.DB.prepare(query).bind(...binds).all();
-  return jsonResponse({ equipos: results });
+  return jsonResponse({ publicado, visible, equipos: results });
 }
 
 export async function handleGetEquipo(request, env, idParam) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible });
+
   const id = parseId(idParam);
   if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
 
@@ -46,10 +53,13 @@ export async function handleGetEquipo(request, env, idParam) {
   const proximos = partidos.filter((p) => !p.played);
   const jugados = partidos.filter((p) => p.played).reverse();
 
-  return jsonResponse({ equipo, jugadores, proximos, jugados });
+  return jsonResponse({ publicado, visible, equipo, jugadores, proximos, jugados });
 }
 
 export async function handleGetJugador(request, env, idParam) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible });
+
   const id = parseId(idParam);
   if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
 
@@ -72,7 +82,7 @@ export async function handleGetJugador(request, env, idParam) {
 
   const totalGoles = goles.reduce((sum, g) => sum + g.count, 0);
 
-  return jsonResponse({ jugador, totalGoles, goles });
+  return jsonResponse({ publicado, visible, jugador, totalGoles, goles });
 }
 
 function applyResult(row, gf, gc) {
@@ -92,6 +102,9 @@ function applyResult(row, gf, gc) {
 }
 
 export async function handleClasificacion(request, env) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible, clasificacion: [] });
+
   const url = new URL(request.url);
   const categoria = clean(url.searchParams.get('categoria') || '').toUpperCase();
   const grupo = clean(url.searchParams.get('grupo') || '');
@@ -136,10 +149,13 @@ export async function handleClasificacion(request, env) {
     (a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.name.localeCompare(b.name)
   );
 
-  return jsonResponse({ clasificacion });
+  return jsonResponse({ publicado, visible, clasificacion });
 }
 
 export async function handlePartidos(request, env) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible, partidos: [] });
+
   const url = new URL(request.url);
   const categoria = clean(url.searchParams.get('categoria') || '').toUpperCase();
   const fase = clean(url.searchParams.get('fase') || '');
@@ -161,7 +177,7 @@ export async function handlePartidos(request, env) {
   query += ' ORDER BY m.scheduled_at IS NULL, m.scheduled_at';
 
   const { results: partidos } = await env.DB.prepare(query).bind(...binds).all();
-  if (partidos.length === 0) return jsonResponse({ partidos: [] });
+  if (partidos.length === 0) return jsonResponse({ publicado, visible, partidos: [] });
 
   const ids = partidos.map((p) => p.id);
   const placeholders = ids.map(() => '?').join(',');
@@ -179,5 +195,5 @@ export async function handlePartidos(request, env) {
 
   const withGoles = partidos.map((p) => ({ ...p, goles: golesByMatch.get(p.id) || [] }));
 
-  return jsonResponse({ partidos: withGoles });
+  return jsonResponse({ publicado, visible, partidos: withGoles });
 }

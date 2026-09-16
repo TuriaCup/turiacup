@@ -18,11 +18,15 @@ const logoutBtn = document.getElementById('logoutBtn');
 const loginForm = document.getElementById('loginForm');
 const loginFeedback = document.getElementById('loginFeedback');
 const adminTabs = document.querySelectorAll('#adminTabs .tab-btn');
+const estadoBanner = document.getElementById('estadoBanner');
 const panels = {
   equipos: document.getElementById('panelEquipos'),
   plantillas: document.getElementById('panelPlantillas'),
   partidos: document.getElementById('panelPartidos'),
+  publicacion: document.getElementById('panelPublicacion'),
 };
+
+let torneoPublico = false;
 
 let currentTab = 'equipos';
 
@@ -34,9 +38,30 @@ async function checkAuth() {
   dashboardSection.hidden = !authenticated;
   logoutBtn.hidden = !authenticated;
   if (authenticated) {
+    await loadEstadoPublicacion();
     await loadTeamsCache();
     showTab(currentTab);
   }
+}
+
+// --- Publicación ---
+
+async function loadEstadoPublicacion() {
+  try {
+    const { torneo_publico } = await fetchJson('/api/admin/ajustes');
+    torneoPublico = Boolean(torneo_publico);
+    renderEstadoBanner();
+  } catch {
+    estadoBanner.hidden = true;
+  }
+}
+
+function renderEstadoBanner() {
+  estadoBanner.hidden = false;
+  estadoBanner.className = `estado-banner ${torneoPublico ? 'publicado' : 'interno'}`;
+  estadoBanner.textContent = torneoPublico
+    ? '🌍 Torneo PUBLICADO: equipos, plantillas, calendario y clasificaciones son visibles para todo el mundo.'
+    : '🔒 Modo interno: solo tú ves el torneo. El público no ve equipos, plantillas, calendario ni clasificaciones.';
 }
 
 async function loadTeamsCache() {
@@ -79,6 +104,63 @@ function showTab(tab) {
   if (tab === 'equipos') renderEquiposTab();
   if (tab === 'plantillas') renderPlantillasTab();
   if (tab === 'partidos') renderPartidosTab();
+  if (tab === 'publicacion') renderPublicacionTab();
+}
+
+// --- Pestaña de publicación ---
+
+function renderPublicacionTab() {
+  panels.publicacion.innerHTML = `
+    <div class="publicacion-box">
+      <h2>${torneoPublico ? '🌍 El torneo está publicado' : '🔒 El torneo está en modo interno'}</h2>
+      <p>${torneoPublico
+        ? 'Cualquiera que entre en turiacup.com puede ver los equipos, los grupos, las plantillas, el calendario y las clasificaciones.'
+        : 'Puedes ir creando equipos, asignando grupos y subiendo plantillas con total tranquilidad: el público todavía no ve nada de eso.'}</p>
+      <p>En modo interno:</p>
+      <ul>
+        <li>La página «Clasificación y equipos» muestra un aviso de «próximamente» a los visitantes.</li>
+        <li>Las fichas de equipo y de jugador tampoco se ven desde fuera.</li>
+        <li>Tú, con la sesión de admin abierta, sigues viéndolo todo para revisarlo antes de publicar.</li>
+        <li>La landing y el formulario de inscripción funcionan igual: esto no los afecta.</li>
+      </ul>
+      <div class="form-actions">
+        <button class="btn-small ${torneoPublico ? 'danger' : 'primary'}" id="togglePublicacionBtn">
+          ${torneoPublico ? 'Volver a modo interno' : 'Publicar el torneo ahora'}
+        </button>
+      </div>
+      <p class="feedback" id="publicacionFeedback"></p>
+    </div>
+  `;
+
+  document.getElementById('togglePublicacionBtn').addEventListener('click', togglePublicacion);
+}
+
+async function togglePublicacion() {
+  const nuevoValor = !torneoPublico;
+  const pregunta = nuevoValor
+    ? '¿Publicar el torneo? A partir de ahora cualquiera podrá ver equipos, plantillas, calendario y clasificaciones.'
+    : '¿Volver a modo interno? El torneo dejará de verse desde fuera.';
+  if (!confirm(pregunta)) return;
+
+  const feedback = document.getElementById('publicacionFeedback');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  try {
+    const res = await fetchJson('/api/admin/ajustes', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ torneo_publico: nuevoValor }),
+    });
+    torneoPublico = Boolean(res.torneo_publico);
+    renderEstadoBanner();
+    renderPublicacionTab();
+    const nuevoFeedback = document.getElementById('publicacionFeedback');
+    nuevoFeedback.textContent = torneoPublico ? 'Torneo publicado.' : 'Torneo en modo interno.';
+    nuevoFeedback.classList.add('success');
+  } catch (err) {
+    feedback.textContent = err.message;
+    feedback.classList.add('error');
+  }
 }
 
 // --- Equipos ---
