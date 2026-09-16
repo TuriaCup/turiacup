@@ -37,7 +37,7 @@ async function load() {
   }
 
   try {
-    const { publicado, visible, equipo, jugadores, proximos, jugados } =
+    const { publicado, visible, equipo, jugadores, staff, proximos, jugados } =
       await fetchJson(`/api/equipos/${encodeURIComponent(teamId)}`);
 
     if (!visible) {
@@ -76,6 +76,17 @@ async function load() {
           <tbody>${rosterRows}</tbody>
         </table>
       ` : '<p class="empty-state">Plantilla aún no publicada.</p>'}
+
+      ${(staff || []).length ? `
+        <h2 class="subsection-title">Cuerpo técnico</h2>
+        <table class="roster-table">
+          <thead><tr><th>Nombre</th><th>Cargo</th></tr></thead>
+          <tbody>${staff.map((t) => `
+            <tr>
+              <td>${escapeHtml(t.nombre)} ${escapeHtml(t.apellidos)}</td>
+              <td>${t.cargo ? escapeHtml(t.cargo) : ''}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : ''}
 
       <h2 class="subsection-title">Próximos partidos</h2>
       ${renderMatchList(proximos, 'No hay próximos partidos programados.')}

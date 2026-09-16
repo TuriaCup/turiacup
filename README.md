@@ -27,13 +27,15 @@ Cloudflare Worker con assets estáticos + D1 para el formulario de inscripción 
 - `public/index.html`, `public/css/`, `public/js/`, `public/img/` — landing pública (info, categorías, galería, vídeos, inscripción). Todo lo que hay en `public/` se sirve tal cual.
 - `public/torneo.html`, `public/equipo.html`, `public/jugador.html` — páginas públicas del módulo de torneo
 - `public/admin.html` — panel de administración (login + gestión de equipos/plantillas/partidos)
+- `public/subir-plantilla.html` — página privada de cada club, servida en `/plantilla/<enlace>`, donde rellenan su plantilla
 - `public/plantillas/plantilla-modelo.xlsx` — plantilla Excel modelo para que los equipos rellenen su roster
 - `worker/index.js` — router del Worker; despacha a `worker/routes/` y `worker/lib/`
 - `worker/routes/inscripcion.js`, `worker/routes/public.js`, `worker/routes/admin.js` — endpoints de la API
 - `worker/lib/http.js`, `worker/lib/auth.js`, `worker/lib/xlsx.js` — utilidades compartidas, sesión de admin y parseo de Excel
 - `schema.sql` — esquema de la tabla `inscripciones`
 - `schema_torneo.sql` — esquema del módulo de torneo (`teams`, `players`, `matches`, `goals`)
-- `schema_ajustes.sql` — esquema de la tabla `settings` (interruptor de publicación del torneo)
+- `schema_ajustes.sql` — esquema de la tabla `settings` (interruptores de publicación y de plazo)
+- `schema_entregas.sql` — esquema de `upload_links` (enlace privado por equipo) y `staff` (cuerpo técnico)
 - `wrangler.toml` — configuración del Worker, el directorio de assets y el binding a D1
 
 ## Requisitos previos
@@ -57,6 +59,7 @@ Aplica el esquema:
 wrangler d1 execute turiacup-db --remote --file=./schema.sql
 wrangler d1 execute turiacup-db --remote --file=./schema_torneo.sql
 wrangler d1 execute turiacup-db --remote --file=./schema_ajustes.sql
+wrangler d1 execute turiacup-db --remote --file=./schema_entregas.sql
 ```
 
 (usa `--local` en vez de `--remote` para probar en tu máquina)
@@ -152,7 +155,41 @@ Con eso, `wrangler dev` levanta el panel en `http://localhost:8787/admin.html`.
    Debajo, la subida de plantillas en lote: seleccionas todos los Excel de los clubes a la vez, el panel
    propone a qué equipo va cada fichero por su nombre (p. ej. `cf-inter-san-jose-u11.xlsx`), corriges lo
    que haga falta en el desplegable y las sube todas seguidas.
-5. **Publicación**: el interruptor de modo interno (ver más abajo).
+5. **Entregas**: los enlaces privados de los clubes y el control del plazo (ver más abajo).
+6. **Publicación**: el interruptor de modo interno (ver más abajo).
+
+## Que cada club rellene su propia plantilla
+
+En vez de perseguir Excels por email, cada equipo tiene su **enlace privado**:
+
+```
+turiacup.com/plantilla/cf-inter-san-jose-u10-2026-k7m4x9
+```
+
+Lleva el nombre del club, la categoría y el año para que se reconozca de un vistazo, y termina en un
+**código aleatorio de 6 caracteres**. Ese código es lo que lo protege: sin él la dirección no existe, así
+que nadie puede adivinar el enlace de otro club y ver datos de menores. Manda a cada club solo el suyo.
+
+Al abrirlo, el club ve el nombre de su equipo y dos tablas que rellena en la propia web: **jugadores**
+(dorsal, nombre, apellidos, fecha de nacimiento y DNI) y **cuerpo técnico** (nombre, apellidos, cargo y
+DNI). Le da a guardar y queda grabado en su equipo. Puede volver con el mismo enlace las veces que
+quiera para corregir o completar; cada guardado sustituye lo anterior.
+
+En la pestaña **Entregas** del panel:
+
+- **Generar los enlaces que falten**: crea el enlace de los equipos que aún no tienen uno. Los que ya
+  existen no se tocan, así que se puede pulsar tantas veces como haga falta según vayas añadiendo equipos.
+- **La lista de quién ha entregado y quién no**, con la fecha de la última vez que guardaron y cuántos
+  jugadores y técnicos tiene cada equipo.
+- **Copiar lista para el correo**: copia todos los enlaces como «equipo · categoría · enlace» para pegarlos
+  en Excel y hacer el envío masivo.
+- **Cerrar el plazo**: un botón. A partir de ahí los clubes siguen viendo su plantilla pero ya no pueden
+  modificarla (pensado para el día antes del torneo). Se puede volver a abrir cuando quieras. Tú sí puedes
+  seguir editando cualquier plantilla desde la pestaña Plantillas, con el plazo abierto o cerrado.
+
+El DNI que rellenan los clubes **nunca sale en las páginas públicas**: solo se ve desde el panel y desde el
+propio enlace del club. En la ficha pública del equipo aparecen la plantilla (sin DNI) y el cuerpo técnico
+con su cargo.
 
 ## Modo interno: preparar el torneo antes de publicarlo
 

@@ -21,6 +21,9 @@ Base de datos: **Cloudflare D1** (`turiacup-db`, binding `DB`). Email: Resend.
   no case devuelve 404. Hay un `try/catch` global que convierte cualquier excepción en un
   500 genérico **sin log**: si algo falla en silencio, reprodúcelo con `wrangler dev`.
 - `worker/routes/inscripcion.js` — `POST /api/inscripcion` (valida, guarda en D1, avisa por email).
+- `worker/routes/plantilla.js` — `/api/plantilla/:slug` (GET/PUT): la plantilla que rellena cada club
+  desde su enlace privado. Sin auth: el secreto es el código del slug. El PUT respeta el ajuste
+  `subidas_abiertas` y sustituye jugadores + `staff` del equipo de una tacada.
 - `worker/routes/public.js` — `/api/equipos`, `/api/equipos/:id`, `/api/jugadores/:id`,
   `/api/clasificacion`, `/api/partidos`. Sin auth, pero todas pasan por `estadoPublicacion`
   (`worker/lib/ajustes.js`) y devuelven `{ publicado, visible }`: si el torneo no está publicado y
@@ -30,7 +33,8 @@ Base de datos: **Cloudflare D1** (`turiacup-db`, binding `DB`). Email: Resend.
   `previsualizar: true` no escribe nada) y `GET/PUT /api/admin/ajustes` (interruptor de publicación).
 - `worker/lib/` — `http.js` (respuestas JSON, `clean`, `escapeHtml`, `parseId`),
   `auth.js` (cookie de sesión firmada con HMAC-SHA256), `xlsx.js` (parseo del Excel de plantillas),
-  `ajustes.js` (interruptor `torneo_publico` y `estadoPublicacion`).
+  `ajustes.js` (interruptores `torneo_publico` y `subidas_abiertas`, y `estadoPublicacion`),
+  `entregas.js` (slug + código aleatorio de los enlaces por club, y lectura de la plantilla).
 - `public/` — sitio estático servido tal cual: `index.html` (landing), `torneo.html`,
   `equipo.html`, `jugador.html`, `admin.html`, más `css/`, `js/`, `img/` y
   `plantillas/plantilla-modelo.xlsx`.
@@ -60,9 +64,11 @@ Worker, nunca en `wrangler.toml`; en local van en `.dev.vars` (ignorado por git)
   - **`matches`**: partido (`category`, `phase` = `grupos`/`oro`/`plata`/`bronce`,
     `group_name` o `round_name`, equipos, marcador, `played`, `scheduled_at`, `venue`).
   - **`goals`**: goles de un jugador en un partido (`count` = cuántos).
-- `schema_ajustes.sql` — tabla **`settings`** (`key`/`value`): de momento solo la clave
-  `torneo_publico` (`'0'` = modo interno, `'1'` = publicado), que se cambia desde la pestaña
-  «Publicación» del panel.
+- `schema_ajustes.sql` — tabla **`settings`** (`key`/`value`): `torneo_publico` (`'0'` = modo interno,
+  `'1'` = publicado) y `subidas_abiertas` (`'0'` = plazo cerrado para los clubes).
+- `schema_entregas.sql` — **`upload_links`** (una fila por equipo: `slug` único con el código aleatorio,
+  `last_upload_at`, `last_upload_count`) y **`staff`** (cuerpo técnico del equipo: `nombre`, `apellidos`,
+  `cargo`, `dni`). Las crea también `ensureEntregasTables` al generar los enlaces.
 
 Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a mano con
 `wrangler d1 execute`. No hay sistema de migraciones: un cambio de esquema es SQL manual.
@@ -110,6 +116,13 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **El DNI nunca sale por la API pública**: `public.js` no lo selecciona. Solo aparece en
   `/api/admin/equipos/:id/jugadores`. Mantenlo así.
 - **`wrangler d1 execute` sin `--remote` va a la base local** de `.wrangler/`, no a producción.
+- **`subidas_abiertas` falla en ABIERTO**, al revés que `torneo_publico`: si falta la clave o peta la
+  consulta, los clubes pueden seguir entregando. El enlace ya es el secreto; el plazo es comodidad, no
+  seguridad. `torneo_publico`, en cambio, falla en cerrado.
+- **`/plantilla/:slug` no es un fichero**: lo sirve el Worker con `env.ASSETS.fetch` (el binding que antes
+  estaba declarado sin usar) devolviendo `subir-plantilla.html`, y si eso fallara, redirige a
+  `/subir-plantilla.html?c=<slug>`. El JS de la página lee el slug de las dos formas. Ojo con la ruta
+  estática `/plantillas/` (en plural): es la carpeta del Excel modelo, no tiene nada que ver.
 - **El modo interno falla en cerrado**: si la tabla `settings` no existe o la consulta peta,
   `isTorneoPublico` devuelve `false`, es decir, el torneo queda oculto (nunca se filtra por error).
   `setTorneoPublico` hace `CREATE TABLE IF NOT EXISTS` antes de escribir, así que el panel funciona

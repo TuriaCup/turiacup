@@ -181,3 +181,20 @@
 .import-box input[type="file"] { margin: 8px 0 16px; }
 .import-lista { color: var(--text-muted); font-size: .9rem; margin: 8px 0 0; padding-left: 18px; }
 .lote-estado { white-space: nowrap; }
+
+/* Entregas de plantillas */
+.entregas-resumen { font-size: 1.05rem; }
+.entregas-pendiente { color: #c0392b; font-weight: 600; }
+.entregada { color: var(--green); font-weight: 600; white-space: nowrap; }
+.pendiente { color: var(--text-muted); white-space: nowrap; }
+.enlace-celda { display: flex; gap: 6px; align-items: center; }
+.enlace-celda input {
+  flex: 1;
+  min-width: 240px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: .82rem;
+  color: var(--text-muted);
+  background: var(--bg);
+}

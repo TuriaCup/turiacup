@@ -1,6 +1,7 @@
 import { isAdminRequest } from './auth.js';
 
 const KEY_TORNEO_PUBLICO = 'torneo_publico';
+const KEY_SUBIDAS_ABIERTAS = 'subidas_abiertas';
 
 const CREATE_SETTINGS_TABLE = `CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
@@ -23,12 +24,34 @@ export async function isTorneoPublico(env) {
   }
 }
 
-export async function setTorneoPublico(env, publico) {
+async function guardarAjuste(env, key, valor) {
   await ensureSettingsTable(env);
   await env.DB.prepare(
     `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-  ).bind(KEY_TORNEO_PUBLICO, publico ? '1' : '0').run();
+  ).bind(key, valor ? '1' : '0').run();
+}
+
+export async function setTorneoPublico(env, publico) {
+  await guardarAjuste(env, KEY_TORNEO_PUBLICO, publico);
+}
+
+/**
+ * ¿Está abierto el plazo para que los clubes suban su plantilla?
+ * A diferencia de la publicación, esto abre por defecto: cerrarlo es un acto deliberado.
+ */
+export async function subidasAbiertas(env) {
+  try {
+    const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?')
+      .bind(KEY_SUBIDAS_ABIERTAS).first();
+    return row ? row.value === '1' : true;
+  } catch {
+    return true;
+  }
+}
+
+export async function setSubidasAbiertas(env, abiertas) {
+  await guardarAjuste(env, KEY_SUBIDAS_ABIERTAS, abiertas);
 }
 
 /**

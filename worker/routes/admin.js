@@ -1,6 +1,7 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { parseRosterExcel } from '../lib/xlsx.js';
-import { isTorneoPublico, setTorneoPublico } from '../lib/ajustes.js';
+import { isTorneoPublico, setTorneoPublico, subidasAbiertas, setSubidasAbiertas } from '../lib/ajustes.js';
+import { ensureEntregasTables, construirSlug } from '../lib/entregas.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 const FASES_VALIDAS = ['grupos', 'oro', 'plata', 'bronce'];
@@ -21,17 +22,73 @@ async function readJson(request) {
 // --- Ajustes / publicación ---
 
 export async function handleGetAjustes(request, env) {
-  return jsonResponse({ torneo_publico: await isTorneoPublico(env) });
+  return jsonResponse({
+    torneo_publico: await isTorneoPublico(env),
+    subidas_abiertas: await subidasAbiertas(env),
+  });
 }
 
 export async function handleUpdateAjustes(request, env) {
   const payload = await readJson(request);
-  if (!payload || typeof payload.torneo_publico !== 'boolean') {
-    return jsonResponse({ error: 'Indica si el torneo debe ser público (true o false).' }, 400);
+  if (!payload) return jsonResponse({ error: 'Solicitud inválida.' }, 400);
+
+  let cambiado = false;
+  if (typeof payload.torneo_publico === 'boolean') {
+    await setTorneoPublico(env, payload.torneo_publico);
+    cambiado = true;
+  }
+  if (typeof payload.subidas_abiertas === 'boolean') {
+    await setSubidasAbiertas(env, payload.subidas_abiertas);
+    cambiado = true;
+  }
+  if (!cambiado) return jsonResponse({ error: 'No has indicado ningún ajuste que cambiar.' }, 400);
+
+  return jsonResponse({
+    ok: true,
+    torneo_publico: await isTorneoPublico(env),
+    subidas_abiertas: await subidasAbiertas(env),
+  });
+}
+
+// --- Entregas de plantillas (enlaces por club) ---
+
+export async function handleListEntregas(request, env) {
+  await ensureEntregasTables(env);
+
+  const { results } = await env.DB.prepare(
+    `SELECT t.id, t.name, t.category, t.group_name,
+            l.slug, l.last_upload_at, l.last_upload_count,
+            (SELECT COUNT(*) FROM players p WHERE p.team_id = t.id) AS jugadores,
+            (SELECT COUNT(*) FROM staff s WHERE s.team_id = t.id) AS tecnicos
+     FROM teams t LEFT JOIN upload_links l ON l.team_id = t.id
+     ORDER BY t.category, t.name`
+  ).all();
+
+  return jsonResponse({ entregas: results, subidas_abiertas: await subidasAbiertas(env) });
+}
+
+/** Crea el enlace de los equipos que todavía no tienen uno. Los existentes no se tocan. */
+export async function handleGenerarEnlaces(request, env) {
+  await ensureEntregasTables(env);
+
+  const { results: pendientes } = await env.DB.prepare(
+    `SELECT t.id, t.name, t.category FROM teams t
+     LEFT JOIN upload_links l ON l.team_id = t.id
+     WHERE l.team_id IS NULL ORDER BY t.category, t.name`
+  ).all();
+
+  if (!pendientes.length) return jsonResponse({ ok: true, creados: 0 });
+
+  const anio = new Date().getFullYear();
+  const statements = pendientes.map((t) => env.DB.prepare(
+    'INSERT INTO upload_links (team_id, slug) VALUES (?, ?)'
+  ).bind(t.id, construirSlug(t, anio)));
+
+  for (let i = 0; i < statements.length; i += LOTE_IMPORT) {
+    await env.DB.batch(statements.slice(i, i + LOTE_IMPORT));
   }
 
-  await setTorneoPublico(env, payload.torneo_publico);
-  return jsonResponse({ ok: true, torneo_publico: payload.torneo_publico });
+  return jsonResponse({ ok: true, creados: pendientes.length });
 }
 
 // --- Equipos ---

@@ -39,6 +39,16 @@ export async function handleGetEquipo(request, env, idParam) {
      WHERE team_id = ? ORDER BY dorsal IS NULL, dorsal, apellidos`
   ).bind(id).all();
 
+  let staff = [];
+  try {
+    const res = await env.DB.prepare(
+      'SELECT nombre, apellidos, cargo FROM staff WHERE team_id = ? ORDER BY id'
+    ).bind(id).all();
+    staff = res.results;
+  } catch {
+    staff = []; // la tabla puede no existir todavía
+  }
+
   const { results: partidos } = await env.DB.prepare(
     `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
             m.home_score, m.away_score, m.played, m.scheduled_at, m.venue,
@@ -53,7 +63,7 @@ export async function handleGetEquipo(request, env, idParam) {
   const proximos = partidos.filter((p) => !p.played);
   const jugados = partidos.filter((p) => p.played).reverse();
 
-  return jsonResponse({ publicado, visible, equipo, jugadores, proximos, jugados });
+  return jsonResponse({ publicado, visible, equipo, jugadores, staff, proximos, jugados });
 }
 
 export async function handleGetJugador(request, env, idParam) {

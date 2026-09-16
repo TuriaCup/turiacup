@@ -9,9 +9,15 @@ import {
   handlePartidos,
 } from './routes/public.js';
 import {
+  handleGetPlantillaPublica,
+  handleGuardarPlantillaPublica,
+} from './routes/plantilla.js';
+import {
   handleImportarEquipos,
   handleGetAjustes,
   handleUpdateAjustes,
+  handleListEntregas,
+  handleGenerarEnlaces,
   handleCreateEquipo,
   handleUpdateEquipo,
   handleDeleteEquipo,
@@ -24,6 +30,23 @@ import {
   handleDeletePartido,
   handleResultadoPartido,
 } from './routes/admin.js';
+
+/**
+ * Las páginas de /plantilla/:slug no existen como fichero, así que el Worker sirve
+ * subir-plantilla.html en su lugar (y si el binding de assets fallara, redirige).
+ */
+async function servirPaginaPlantilla(request, env, slug) {
+  const destino = new URL('/subir-plantilla.html', request.url);
+  try {
+    if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
+      return await env.ASSETS.fetch(new Request(destino, request));
+    }
+  } catch {
+    // seguimos con la redirección
+  }
+  destino.searchParams.set('c', slug);
+  return Response.redirect(destino.toString(), 302);
+}
 
 function matchPath(pattern, pathname) {
   const patternParts = pattern.split('/').filter(Boolean);
@@ -52,6 +75,9 @@ async function routeAdmin(request, env, pathname, method) {
     if (method === 'GET') return handleGetAjustes(request, env);
     if (method === 'PUT') return handleUpdateAjustes(request, env);
   }
+
+  if (pathname === '/api/admin/entregas' && method === 'GET') return handleListEntregas(request, env);
+  if (pathname === '/api/admin/entregas/enlaces' && method === 'POST') return handleGenerarEnlaces(request, env);
 
   if (pathname === '/api/admin/equipos' && method === 'POST') return handleCreateEquipo(request, env);
   if (pathname === '/api/admin/equipos/importar' && method === 'POST') return handleImportarEquipos(request, env);
@@ -106,6 +132,15 @@ export default {
 
       params = matchPath('/api/jugadores/:id', pathname);
       if (params && method === 'GET') return handleGetJugador(request, env, params.id);
+
+      params = matchPath('/api/plantilla/:slug', pathname);
+      if (params) {
+        if (method === 'GET') return handleGetPlantillaPublica(request, env, params.slug);
+        if (method === 'PUT') return handleGuardarPlantillaPublica(request, env, params.slug);
+      }
+
+      params = matchPath('/plantilla/:slug', pathname);
+      if (params && method === 'GET') return servirPaginaPlantilla(request, env, params.slug);
 
       if (pathname === '/api/admin/login' && method === 'POST') return handleLogin(request, env);
       if (pathname === '/api/admin/logout' && method === 'POST') return handleLogout(request);
