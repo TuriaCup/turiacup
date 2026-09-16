@@ -54,11 +54,12 @@ function render() {
 
     <div class="plantilla-bloque">
       <h2>Jugadores</h2>
-      <p class="ayuda">Nombre y apellidos son obligatorios. El resto, si lo tienes a mano, mejor.
-      Puedes guardar e ir completándolo más adelante con este mismo enlace.</p>
+      <p class="ayuda">Rellena <strong>nombre, apellidos, fecha de nacimiento y DNI</strong> de cada jugador.
+      La fecha de nacimiento es imprescindible para verificar la categoría. Si más adelante necesitas
+      corregir algo, vuelve a este mismo enlace mientras el plazo siga abierto.</p>
       <table class="plantilla-tabla">
         <thead>
-          <tr><th>Dorsal</th><th>Nombre</th><th>Apellidos</th><th>Fecha de nacimiento</th><th>DNI</th><th></th></tr>
+          <tr><th>Dorsal</th><th>Nombre *</th><th>Apellidos *</th><th>Fecha de nacimiento *</th><th>DNI *</th><th></th></tr>
         </thead>
         <tbody id="tbodyJugadores">${filasJugadores}</tbody>
       </table>
@@ -67,10 +68,11 @@ function render() {
 
     <div class="plantilla-bloque">
       <h2>Cuerpo técnico</h2>
-      <p class="ayuda">Entrenador, segundo entrenador, delegado… el cargo lo escribes tú.</p>
+      <p class="ayuda">Entrenador, segundo entrenador, delegado… el cargo lo escribes tú.
+      Indica el nombre, los apellidos y el DNI de cada persona.</p>
       <table class="plantilla-tabla">
         <thead>
-          <tr><th>Nombre</th><th>Apellidos</th><th>Cargo</th><th>DNI</th><th></th></tr>
+          <tr><th>Nombre *</th><th>Apellidos *</th><th>Cargo</th><th>DNI</th><th></th></tr>
         </thead>
         <tbody id="tbodyStaff">${filasStaff}</tbody>
       </table>
@@ -126,6 +128,25 @@ async function guardar() {
     feedback.classList.add('error');
     return;
   }
+
+  const incompletos = [];
+  jugadores.forEach((j, i) => {
+    const faltan = [];
+    if (!j.nombre) faltan.push('nombre');
+    if (!j.apellidos) faltan.push('apellidos');
+    if (!j.fecha_nacimiento) faltan.push('fecha de nacimiento');
+    if (faltan.length) incompletos.push(`jugador ${i + 1} (falta ${faltan.join(', ')})`);
+  });
+  if (incompletos.length) {
+    feedback.textContent = `Faltan datos obligatorios: ${incompletos.join('; ')}.`;
+    feedback.classList.add('error');
+    return;
+  }
+
+  const sinDni = jugadores.filter((j) => !j.dni).length;
+  if (sinDni && !confirm(
+    `Hay ${sinDni} jugador(es) sin DNI. La organización lo necesita para las fichas.\n\n`
+    + '¿Guardar igualmente y completarlo más adelante?')) return;
 
   boton.disabled = true;
   try {

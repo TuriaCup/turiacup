@@ -118,6 +118,10 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
   `/api/admin/equipos/:id/jugadores` y en `/api/plantilla/:slug` (el enlace del propio club). Mantenlo así:
   son datos de menores.
 - **`wrangler d1 execute` sin `--remote` va a la base local** de `.wrangler/`, no a producción.
+- **En `/api/plantilla/:slug` la fecha de nacimiento es obligatoria y el DNI no**: la pantalla marca los dos
+  con asterisco (a propósito: si se dice que el DNI es opcional, no lo rellenan), pero solo la fecha bloquea
+  el guardado. El DNI que falta se avisa con un `confirm` en el navegador. El Excel del panel sigue siendo
+  más flexible: ahí solo nombre y apellidos son obligatorios.
 - **`subidas_abiertas` falla en ABIERTO**, al revés que `torneo_publico`: si falta la clave o peta la
   consulta, los clubes pueden seguir entregando. El enlace ya es el secreto; el plazo es comodidad, no
   seguridad. `torneo_publico`, en cambio, falla en cerrado.

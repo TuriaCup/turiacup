@@ -22,7 +22,8 @@ function validarJugador(fila, indice) {
   if (!nombre || !apellidos) return { error: `${etiqueta}: el nombre y los apellidos son obligatorios.` };
   if (nombre.length > 120 || apellidos.length > 120) return { error: `${etiqueta}: nombre o apellidos demasiado largos.` };
   if (dni.length > 20) return { error: `${etiqueta}: el DNI es demasiado largo.` };
-  if (fecha_nacimiento && !FECHA_RE.test(fecha_nacimiento)) {
+  if (!fecha_nacimiento) return { error: `${etiqueta}: falta la fecha de nacimiento.` };
+  if (!FECHA_RE.test(fecha_nacimiento)) {
     return { error: `${etiqueta}: la fecha de nacimiento no es válida.` };
   }
 
@@ -33,7 +34,7 @@ function validarJugador(fila, indice) {
     dorsal = n;
   }
 
-  return { fila: { dorsal, nombre, apellidos, fecha_nacimiento: fecha_nacimiento || null, dni: dni || null } };
+  return { fila: { dorsal, nombre, apellidos, fecha_nacimiento, dni: dni || null } };
 }
 
 function validarTecnico(fila, indice) {

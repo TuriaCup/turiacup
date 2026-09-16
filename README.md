@@ -172,7 +172,9 @@ que nadie puede adivinar el enlace de otro club y ver datos de menores. Manda a 
 
 Al abrirlo, el club ve el nombre de su equipo y dos tablas que rellena en la propia web: **jugadores**
 (dorsal, nombre, apellidos, fecha de nacimiento y DNI) y **cuerpo técnico** (nombre, apellidos, cargo y
-DNI). Le da a guardar y queda grabado en su equipo. Puede volver con el mismo enlace las veces que
+DNI). Nombre, apellidos y **fecha de nacimiento son obligatorios**: sin ellos no deja guardar. El DNI se
+pide como obligatorio en la pantalla, pero si falta en algún jugador solo avisa y deja continuar, para que
+un club que no lo tenga a mano pueda entregar igualmente. Le da a guardar y queda grabado en su equipo. Puede volver con el mismo enlace las veces que
 quiera para corregir o completar; cada guardado sustituye lo anterior.
 
 En la pestaña **Entregas** del panel:
