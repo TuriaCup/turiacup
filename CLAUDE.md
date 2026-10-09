@@ -136,3 +136,11 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **El admin ve el torneo aunque no esté publicado**: `estadoPublicacion` deja pasar las peticiones con
   cookie de sesión válida. Si tocas las rutas públicas, mantén ese comportamiento o el panel (que usa
   `/api/equipos` y `/api/partidos`) se queda sin datos.
+
+## Referencias de otros torneos
+
+Webs de otros torneos que el dueño ha guardado como ejemplo. Consúltalas como inspiración, no
+copies su marca ni sus textos.
+
+- **Horarios / calendario de partidos**: <https://www.cdelplanter.com/torneos/762d449e-c7c5-4769-94b5-280d8281e1b4/d859ac8a-f9be-418b-977d-687fefd08cff/9872da32-6f5d-4a73-94f5-0fa69df4fbec>
+  (torneo en cdelplanter.com con los horarios publicados en su web).
