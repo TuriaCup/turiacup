@@ -40,9 +40,12 @@ function render() {
   const filasStaff = (staff.length ? staff : [{}]).map(filaTecnico).join('');
 
   content.innerHTML = `
-    <div class="plantilla-cabecera">
-      <h1>${escapeHtml(equipo.name)}</h1>
-      <div class="entity-meta">Categoría ${escapeHtml(equipo.category)} · Turia Cup</div>
+    <div class="plantilla-cabecera entity-header">
+      ${equipo.logo_url ? `<img src="${escapeHtml(equipo.logo_url)}" alt="Escudo de ${escapeHtml(equipo.name)}">` : ''}
+      <div>
+        <h1>${escapeHtml(equipo.name)}</h1>
+        <div class="entity-meta">Categoría ${escapeHtml(equipo.category)} · Turia Cup</div>
+      </div>
     </div>
 
     ${soloLectura ? `
