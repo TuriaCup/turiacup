@@ -8,6 +8,7 @@
 }
 .plantilla-cabecera h1 { margin-bottom: 4px; }
 .plantilla-cabecera .entity-meta { color: var(--text-muted); }
+.plantilla-cabecera.entity-header img { width: 72px; height: 72px; }
 
 .plantilla-tabla { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
 .plantilla-tabla th {

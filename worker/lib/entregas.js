@@ -48,7 +48,7 @@ export function construirSlug(team, anio) {
 export async function getEquipoPorSlug(env, slug) {
   try {
     return await env.DB.prepare(
-      `SELECT t.id, t.name, t.category, l.slug, l.last_upload_at, l.last_upload_count
+      `SELECT t.id, t.name, t.category, t.logo_url, l.slug, l.last_upload_at, l.last_upload_count
        FROM upload_links l JOIN teams t ON t.id = l.team_id WHERE l.slug = ?`
     ).bind(slug).first();
   } catch {

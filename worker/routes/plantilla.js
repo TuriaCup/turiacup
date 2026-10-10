@@ -62,7 +62,7 @@ export async function handleGetPlantillaPublica(request, env, slugParam) {
   const { jugadores, staff } = await getPlantillaDeEquipo(env, equipo.id);
 
   return jsonResponse({
-    equipo: { name: equipo.name, category: equipo.category },
+    equipo: { name: equipo.name, category: equipo.category, logo_url: equipo.logo_url },
     abierto: await subidasAbiertas(env),
     actualizada_el: equipo.last_upload_at,
     jugadores,
