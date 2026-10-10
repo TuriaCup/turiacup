@@ -9,6 +9,15 @@ import {
   handlePartidos,
 } from './routes/public.js';
 import {
+  handleGetPlantillaPublica,
+  handleGuardarPlantillaPublica,
+} from './routes/plantilla.js';
+import {
+  handleImportarEquipos,
+  handleGetAjustes,
+  handleUpdateAjustes,
+  handleListEntregas,
+  handleGenerarEnlaces,
   handleCreateEquipo,
   handleUpdateEquipo,
   handleDeleteEquipo,
@@ -21,6 +30,43 @@ import {
   handleDeletePartido,
   handleResultadoPartido,
 } from './routes/admin.js';
+
+/**
+ * Las páginas de /plantilla/:slug no existen como fichero, así que el Worker sirve
+ * subir-plantilla.html en su lugar (y si el binding de assets fallara, redirige).
+ */
+async function servirPaginaPlantilla(request, env, slug) {
+  const destino = new URL('/subir-plantilla.html', request.url);
+
+  try {
+    if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
+      let res = await env.ASSETS.fetch(new Request(destino, { method: 'GET' }));
+
+      // Los assets pueden contestar con una redirección a la versión sin `.html`.
+      // Hay que seguirla aquí dentro: si se la devolvemos al navegador, se va a esa otra
+      // dirección y pierde el código del enlace (/plantilla/<slug>).
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get('Location');
+        if (location) {
+          res = await env.ASSETS.fetch(new Request(new URL(location, request.url), { method: 'GET' }));
+        }
+      }
+
+      if (res.ok) {
+        return new Response(res.body, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      }
+    }
+  } catch {
+    // seguimos con la redirección de abajo
+  }
+
+  // Último recurso: mandamos el navegador a la página con el código en la dirección.
+  destino.searchParams.set('c', slug);
+  return Response.redirect(destino.toString(), 302);
+}
 
 function matchPath(pattern, pathname) {
   const patternParts = pattern.split('/').filter(Boolean);
@@ -45,7 +91,16 @@ async function routeAdmin(request, env, pathname, method) {
 
   let params;
 
+  if (pathname === '/api/admin/ajustes') {
+    if (method === 'GET') return handleGetAjustes(request, env);
+    if (method === 'PUT') return handleUpdateAjustes(request, env);
+  }
+
+  if (pathname === '/api/admin/entregas' && method === 'GET') return handleListEntregas(request, env);
+  if (pathname === '/api/admin/entregas/enlaces' && method === 'POST') return handleGenerarEnlaces(request, env);
+
   if (pathname === '/api/admin/equipos' && method === 'POST') return handleCreateEquipo(request, env);
+  if (pathname === '/api/admin/equipos/importar' && method === 'POST') return handleImportarEquipos(request, env);
 
   params = matchPath('/api/admin/equipos/:id', pathname);
   if (params) {
@@ -97,6 +152,15 @@ export default {
 
       params = matchPath('/api/jugadores/:id', pathname);
       if (params && method === 'GET') return handleGetJugador(request, env, params.id);
+
+      params = matchPath('/api/plantilla/:slug', pathname);
+      if (params) {
+        if (method === 'GET') return handleGetPlantillaPublica(request, env, params.slug);
+        if (method === 'PUT') return handleGuardarPlantillaPublica(request, env, params.slug);
+      }
+
+      params = matchPath('/plantilla/:slug', pathname);
+      if (params && method === 'GET') return servirPaginaPlantilla(request, env, params.slug);
 
       if (pathname === '/api/admin/login' && method === 'POST') return handleLogin(request, env);
       if (pathname === '/api/admin/logout' && method === 'POST') return handleLogout(request);

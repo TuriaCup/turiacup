@@ -18,11 +18,20 @@ const logoutBtn = document.getElementById('logoutBtn');
 const loginForm = document.getElementById('loginForm');
 const loginFeedback = document.getElementById('loginFeedback');
 const adminTabs = document.querySelectorAll('#adminTabs .tab-btn');
+const estadoBanner = document.getElementById('estadoBanner');
 const panels = {
   equipos: document.getElementById('panelEquipos'),
   plantillas: document.getElementById('panelPlantillas'),
   partidos: document.getElementById('panelPartidos'),
+  importar: document.getElementById('panelImportar'),
+  entregas: document.getElementById('panelEntregas'),
+  publicacion: document.getElementById('panelPublicacion'),
 };
+
+let loteArchivos = [];
+
+let torneoPublico = false;
+let subidasAbiertas = true;
 
 let currentTab = 'equipos';
 
@@ -34,9 +43,31 @@ async function checkAuth() {
   dashboardSection.hidden = !authenticated;
   logoutBtn.hidden = !authenticated;
   if (authenticated) {
+    await loadEstadoPublicacion();
     await loadTeamsCache();
     showTab(currentTab);
   }
+}
+
+// --- Publicación ---
+
+async function loadEstadoPublicacion() {
+  try {
+    const { torneo_publico, subidas_abiertas } = await fetchJson('/api/admin/ajustes');
+    torneoPublico = Boolean(torneo_publico);
+    subidasAbiertas = subidas_abiertas !== false;
+    renderEstadoBanner();
+  } catch {
+    estadoBanner.hidden = true;
+  }
+}
+
+function renderEstadoBanner() {
+  estadoBanner.hidden = false;
+  estadoBanner.className = `estado-banner ${torneoPublico ? 'publicado' : 'interno'}`;
+  estadoBanner.textContent = torneoPublico
+    ? '🌍 Torneo PUBLICADO: equipos, plantillas, calendario y clasificaciones son visibles para todo el mundo.'
+    : '🔒 Modo interno: solo tú ves el torneo. El público no ve equipos, plantillas, calendario ni clasificaciones.';
 }
 
 async function loadTeamsCache() {
@@ -79,7 +110,452 @@ function showTab(tab) {
   if (tab === 'equipos') renderEquiposTab();
   if (tab === 'plantillas') renderPlantillasTab();
   if (tab === 'partidos') renderPartidosTab();
+  if (tab === 'importar') renderImportarTab();
+  if (tab === 'entregas') renderEntregasTab();
+  if (tab === 'publicacion') renderPublicacionTab();
 }
+
+// --- Pestaña de publicación ---
+
+function renderPublicacionTab() {
+  panels.publicacion.innerHTML = `
+    <div class="publicacion-box">
+      <h2>${torneoPublico ? '🌍 El torneo está publicado' : '🔒 El torneo está en modo interno'}</h2>
+      <p>${torneoPublico
+        ? 'Cualquiera que entre en turiacup.com puede ver los equipos, los grupos, las plantillas, el calendario y las clasificaciones.'
+        : 'Puedes ir creando equipos, asignando grupos y subiendo plantillas con total tranquilidad: el público todavía no ve nada de eso.'}</p>
+      <p>En modo interno:</p>
+      <ul>
+        <li>La página «Clasificación y equipos» muestra un aviso de «próximamente» a los visitantes.</li>
+        <li>Las fichas de equipo y de jugador tampoco se ven desde fuera.</li>
+        <li>Tú, con la sesión de admin abierta, sigues viéndolo todo para revisarlo antes de publicar.</li>
+        <li>La landing y el formulario de inscripción funcionan igual: esto no los afecta.</li>
+      </ul>
+      <div class="form-actions">
+        <button class="btn-small ${torneoPublico ? 'danger' : 'primary'}" id="togglePublicacionBtn">
+          ${torneoPublico ? 'Volver a modo interno' : 'Publicar el torneo ahora'}
+        </button>
+      </div>
+      <p class="feedback" id="publicacionFeedback"></p>
+    </div>
+  `;
+
+  document.getElementById('togglePublicacionBtn').addEventListener('click', togglePublicacion);
+}
+
+async function togglePublicacion() {
+  const nuevoValor = !torneoPublico;
+  const pregunta = nuevoValor
+    ? '¿Publicar el torneo? A partir de ahora cualquiera podrá ver equipos, plantillas, calendario y clasificaciones.'
+    : '¿Volver a modo interno? El torneo dejará de verse desde fuera.';
+  if (!confirm(pregunta)) return;
+
+  const feedback = document.getElementById('publicacionFeedback');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  try {
+    const res = await fetchJson('/api/admin/ajustes', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ torneo_publico: nuevoValor }),
+    });
+    torneoPublico = Boolean(res.torneo_publico);
+    renderEstadoBanner();
+    renderPublicacionTab();
+    const nuevoFeedback = document.getElementById('publicacionFeedback');
+    nuevoFeedback.textContent = torneoPublico ? 'Torneo publicado.' : 'Torneo en modo interno.';
+    nuevoFeedback.classList.add('success');
+  } catch (err) {
+    feedback.textContent = err.message;
+    feedback.classList.add('error');
+  }
+}
+
+// --- Importar (equipos en lote y plantillas en lote) ---
+
+function renderImportarTab() {
+  panels.importar.innerHTML = `
+    <div class="import-box">
+      <h2>Importar equipos</h2>
+      <p>Pega la lista de equipos, uno por línea. Si copias las celdas directamente desde Excel,
+      pégalas aquí tal cual: ya vienen separadas por tabuladores.</p>
+      <p class="import-formato">Orden de las columnas: <strong>Nombre · Categoría · Grupo · Ciudad</strong>.
+      Nombre y categoría son obligatorios; grupo y ciudad pueden ir vacíos.
+      Si la primera línea es la de los títulos, se ignora sola.</p>
+      <textarea id="importTexto" rows="10" spellcheck="false"
+        placeholder="CF Inter San José&#9;U10&#9;A&#9;Valencia&#10;Valencia CF&#9;U11&#9;B&#9;Valencia"></textarea>
+      <div class="form-actions">
+        <button class="btn-small" id="comprobarImportBtn">Comprobar sin guardar</button>
+        <button class="btn-small primary" id="importarBtn">Importar</button>
+      </div>
+      <p class="feedback" id="importFeedback"></p>
+      <div id="importResultado"></div>
+    </div>
+
+    <div class="import-box">
+      <h2>Subir varias plantillas a la vez</h2>
+      <p>Selecciona todos los Excel que te hayan mandado los clubes. Intento adivinar a qué equipo
+      corresponde cada fichero por su nombre; <strong>revisa la asignación antes de subir</strong> y
+      corrige lo que haga falta.</p>
+      <p class="import-formato">Cada Excel sustituye la plantilla completa de ese equipo, y si ese
+      equipo ya tenía goles registrados, se borran con ella.</p>
+      <input type="file" id="loteFiles" accept=".xlsx" multiple>
+      <div id="loteTabla"></div>
+      <div class="form-actions">
+        <button class="btn-small primary" id="subirLoteBtn" hidden>Subir todas</button>
+      </div>
+      <p class="feedback" id="loteFeedback"></p>
+    </div>
+  `;
+
+  document.getElementById('comprobarImportBtn').addEventListener('click', () => enviarImportEquipos(true));
+  document.getElementById('importarBtn').addEventListener('click', () => enviarImportEquipos(false));
+  document.getElementById('loteFiles').addEventListener('change', (e) => prepararLote(e.target.files));
+  document.getElementById('subirLoteBtn').addEventListener('click', subirLote);
+}
+
+async function enviarImportEquipos(previsualizar) {
+  const texto = document.getElementById('importTexto').value;
+  const feedback = document.getElementById('importFeedback');
+  const resultado = document.getElementById('importResultado');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  resultado.innerHTML = '';
+
+  if (!previsualizar && !confirm('¿Crear en la web los equipos de la lista?')) return;
+
+  try {
+    const res = await fetchJson('/api/admin/equipos/importar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto, previsualizar }),
+    });
+
+    const nuevos = res.nuevos || [];
+    feedback.textContent = previsualizar
+      ? `Se crearían ${nuevos.length} equipos. Nada guardado todavía.`
+      : `Creados ${res.creados} equipos.`;
+    feedback.classList.add(res.errores.length ? 'error' : 'success');
+
+    resultado.innerHTML = `
+      ${nuevos.length ? `
+        <h3>${previsualizar ? 'Se crearían' : 'Creados'} (${nuevos.length})</h3>
+        <table class="admin-table">
+          <thead><tr><th>Nombre</th><th>Categoría</th><th>Grupo</th><th>Ciudad</th></tr></thead>
+          <tbody>${nuevos.map((t) => `
+            <tr>
+              <td>${escapeHtml(t.name)}</td>
+              <td>${escapeHtml(t.category)}</td>
+              <td>${t.group_name ? escapeHtml(t.group_name) : ''}</td>
+              <td>${t.city ? escapeHtml(t.city) : ''}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : ''}
+      ${res.duplicados.length ? `
+        <h3>Ya existían, no se tocan (${res.duplicados.length})</h3>
+        <ul class="import-lista">${res.duplicados.map((d) =>
+          `<li>Línea ${d.linea}: ${escapeHtml(d.name)} (${escapeHtml(d.category)})</li>`).join('')}</ul>` : ''}
+      ${res.errores.length ? `
+        <h3>Líneas con problemas (${res.errores.length})</h3>
+        <ul class="errores-list">${res.errores.map((e) =>
+          `<li>Línea ${e.linea}: ${escapeHtml(e.message)}</li>`).join('')}</ul>` : ''}
+    `;
+
+    if (!previsualizar && res.creados > 0) await loadTeamsCache();
+  } catch (err) {
+    feedback.textContent = err.message;
+    feedback.classList.add('error');
+  }
+}
+
+function normalizarTexto(value) {
+  return String(value ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** Adivina a qué equipo pertenece un fichero por su nombre. Devuelve null si no lo tiene claro. */
+function proponerEquipo(nombreFichero) {
+  const base = normalizarTexto(nombreFichero.replace(/\.xlsx$/i, ''));
+  const cat = base.match(/\bu\s?(9|10|11|12)\b/);
+  const categoria = cat ? `U${cat[1]}` : null;
+
+  let candidatos = teamsCache.filter((t) => base.includes(normalizarTexto(t.name)));
+  if (categoria) {
+    const mismaCategoria = candidatos.filter((t) => t.category === categoria);
+    if (mismaCategoria.length) candidatos = mismaCategoria;
+  }
+  if (candidatos.length === 1) return candidatos[0];
+  if (!candidatos.length) return null;
+
+  // varios encajan: gana el nombre más largo, y solo si no hay empate
+  candidatos.sort((a, b) => normalizarTexto(b.name).length - normalizarTexto(a.name).length);
+  const largo = normalizarTexto(candidatos[0].name).length;
+  const empatados = candidatos.filter((t) => normalizarTexto(t.name).length === largo);
+  return empatados.length === 1 ? candidatos[0] : null;
+}
+
+function prepararLote(fileList) {
+  loteArchivos = [...fileList].map((file) => ({ file, equipo: proponerEquipo(file.name) }));
+  const tabla = document.getElementById('loteTabla');
+  const boton = document.getElementById('subirLoteBtn');
+
+  if (!loteArchivos.length) {
+    tabla.innerHTML = '';
+    boton.hidden = true;
+    return;
+  }
+
+  const sinAsignar = loteArchivos.filter((a) => !a.equipo).length;
+  tabla.innerHTML = `
+    ${sinAsignar ? `<p class="feedback error">No he sabido a qué equipo van ${sinAsignar} fichero(s): elígelo a mano.</p>` : ''}
+    <table class="admin-table">
+      <thead><tr><th>Fichero</th><th>Equipo</th><th>Estado</th></tr></thead>
+      <tbody>${loteArchivos.map((a, i) => `
+        <tr data-i="${i}">
+          <td>${escapeHtml(a.file.name)}</td>
+          <td>
+            <select data-field="equipo">
+              <option value="">— elegir equipo —</option>
+              ${teamsCache.map((t) => `
+                <option value="${t.id}" ${a.equipo && a.equipo.id === t.id ? 'selected' : ''}>
+                  ${escapeHtml(t.name)} (${t.category})
+                </option>`).join('')}
+            </select>
+          </td>
+          <td class="lote-estado">${a.equipo ? 'Listo' : 'Sin asignar'}</td>
+        </tr>`).join('')}</tbody>
+    </table>
+  `;
+  boton.hidden = false;
+}
+
+async function subirLote() {
+  const filas = [...document.querySelectorAll('#loteTabla tbody tr')];
+  const feedback = document.getElementById('loteFeedback');
+  const boton = document.getElementById('subirLoteBtn');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+
+  const pendientes = filas.filter((fila) => fila.querySelector('select').value);
+  if (!pendientes.length) {
+    feedback.textContent = 'Asigna al menos un fichero a un equipo.';
+    feedback.classList.add('error');
+    return;
+  }
+  if (!confirm(`¿Subir ${pendientes.length} plantilla(s)? Se sustituye la plantilla completa de cada equipo.`)) return;
+
+  boton.disabled = true;
+  let subidas = 0;
+  let conFallo = 0;
+
+  for (const fila of pendientes) {
+    const indice = Number(fila.dataset.i);
+    const teamId = fila.querySelector('select').value;
+    const estado = fila.querySelector('.lote-estado');
+    estado.textContent = 'Subiendo…';
+
+    const fd = new FormData();
+    fd.append('file', loteArchivos[indice].file);
+    try {
+      const res = await fetchJson(`/api/admin/equipos/${teamId}/plantilla`, { method: 'POST', body: fd });
+      estado.textContent = `✅ ${res.importados} jugadores`
+        + (res.errores.length ? ` · ${res.errores.length} filas con errores` : '');
+      subidas++;
+    } catch (err) {
+      estado.textContent = `❌ ${err.message}`;
+      conFallo++;
+    }
+    feedback.textContent = `Subiendo… ${subidas + conFallo} de ${pendientes.length}`;
+  }
+
+  boton.disabled = false;
+  feedback.textContent = `Terminado: ${subidas} plantilla(s) subida(s)`
+    + (conFallo ? `, ${conFallo} con error (mira la columna Estado).` : '.');
+  feedback.classList.add(conFallo ? 'error' : 'success');
+}
+
+// --- Entregas de plantillas (enlaces por club) ---
+
+let entregasCache = [];
+
+function enlaceDeEntrega(slug) {
+  return `${location.origin}/plantilla/${slug}`;
+}
+
+function renderEntregasTab() {
+  panels.entregas.innerHTML = `
+    <div class="import-box">
+      <h2>Plazo de entrega</h2>
+      <p id="plazoTexto"></p>
+      <div class="form-actions">
+        <button class="btn-small" id="togglePlazoBtn"></button>
+      </div>
+      <p class="feedback" id="plazoFeedback"></p>
+    </div>
+
+    <div class="import-box">
+      <div class="admin-toolbar">
+        <h2>Entregas por equipo</h2>
+        <div>
+          <button class="btn-small" id="generarEnlacesBtn">Generar los enlaces que falten</button>
+          <button class="btn-small" id="copiarListaBtn">Copiar lista para el correo</button>
+        </div>
+      </div>
+      <p class="feedback" id="entregasFeedback"></p>
+      <div id="entregasResumen"></div>
+      <div id="entregasTabla"><p>Cargando…</p></div>
+    </div>
+  `;
+
+  document.getElementById('togglePlazoBtn').addEventListener('click', togglePlazo);
+  document.getElementById('generarEnlacesBtn').addEventListener('click', generarEnlaces);
+  document.getElementById('copiarListaBtn').addEventListener('click', copiarLista);
+
+  renderPlazo();
+  loadEntregas();
+}
+
+function renderPlazo() {
+  const texto = document.getElementById('plazoTexto');
+  const boton = document.getElementById('togglePlazoBtn');
+  if (!texto || !boton) return;
+
+  texto.innerHTML = subidasAbiertas
+    ? '🟢 <strong>Abierto</strong>: los clubes pueden rellenar y modificar su plantilla desde su enlace.'
+    : '🔒 <strong>Cerrado</strong>: los clubes ven su plantilla pero ya no pueden tocarla. '
+      + 'Tú sí puedes seguir editándola desde la pestaña Plantillas.';
+  boton.textContent = subidasAbiertas ? 'Cerrar el plazo' : 'Volver a abrir el plazo';
+  boton.className = `btn-small ${subidasAbiertas ? 'danger' : 'primary'}`;
+}
+
+async function togglePlazo() {
+  const nuevoValor = !subidasAbiertas;
+  const pregunta = nuevoValor
+    ? '¿Volver a abrir el plazo? Los clubes podrán modificar sus plantillas otra vez.'
+    : '¿Cerrar el plazo? A partir de ahora ningún club podrá modificar su plantilla.';
+  if (!confirm(pregunta)) return;
+
+  const feedback = document.getElementById('plazoFeedback');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  try {
+    const res = await fetchJson('/api/admin/ajustes', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subidas_abiertas: nuevoValor }),
+    });
+    subidasAbiertas = res.subidas_abiertas !== false;
+    renderPlazo();
+    feedback.textContent = subidasAbiertas ? 'Plazo abierto.' : 'Plazo cerrado.';
+    feedback.classList.add('success');
+  } catch (err) {
+    feedback.textContent = err.message;
+    feedback.classList.add('error');
+  }
+}
+
+async function loadEntregas() {
+  const contenedor = document.getElementById('entregasTabla');
+  const resumen = document.getElementById('entregasResumen');
+  try {
+    const { entregas, subidas_abiertas } = await fetchJson('/api/admin/entregas');
+    entregasCache = entregas;
+    subidasAbiertas = subidas_abiertas !== false;
+    renderPlazo();
+
+    if (!entregas.length) {
+      contenedor.innerHTML = '<p>No hay equipos todavía. Créalos primero en la pestaña Importar o Equipos.</p>';
+      resumen.innerHTML = '';
+      return;
+    }
+
+    const entregadas = entregas.filter((e) => e.last_upload_at).length;
+    const sinEnlace = entregas.filter((e) => !e.slug).length;
+    resumen.innerHTML = `
+      <p class="entregas-resumen">
+        <strong>${entregadas}</strong> de <strong>${entregas.length}</strong> equipos han entregado su plantilla.
+        ${sinEnlace ? `<br><span class="entregas-pendiente">${sinEnlace} equipo(s) todavía sin enlace: pulsa «Generar los enlaces que falten».</span>` : ''}
+      </p>
+    `;
+
+    contenedor.innerHTML = `
+      <table class="admin-table">
+        <thead>
+          <tr><th>Equipo</th><th>Cat.</th><th>Estado</th><th>Jug.</th><th>C. téc.</th><th>Enlace del club</th></tr>
+        </thead>
+        <tbody>
+          ${entregas.map((e) => `
+            <tr>
+              <td>${escapeHtml(e.name)}</td>
+              <td>${escapeHtml(e.category)}</td>
+              <td>${e.last_upload_at
+                ? `<span class="entregada">✅ ${escapeHtml(formatFechaHora(e.last_upload_at))}</span>`
+                : '<span class="pendiente">⏳ Pendiente</span>'}</td>
+              <td>${e.jugadores}</td>
+              <td>${e.tecnicos}</td>
+              <td>${e.slug
+                ? `<div class="enlace-celda">
+                     <input type="text" readonly value="${escapeHtml(enlaceDeEntrega(e.slug))}">
+                     <button class="btn-small" data-action="copiar-enlace" data-slug="${escapeHtml(e.slug)}">Copiar</button>
+                   </div>`
+                : '<span class="pendiente">sin enlace</span>'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (err) {
+    contenedor.innerHTML = `<p class="feedback error">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function generarEnlaces() {
+  const feedback = document.getElementById('entregasFeedback');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+  try {
+    const res = await fetchJson('/api/admin/entregas/enlaces', { method: 'POST' });
+    feedback.textContent = res.creados
+      ? `Creados ${res.creados} enlaces nuevos. Los que ya existían no se han tocado.`
+      : 'Todos los equipos tenían ya su enlace.';
+    feedback.classList.add('success');
+    await loadEntregas();
+  } catch (err) {
+    feedback.textContent = err.message;
+    feedback.classList.add('error');
+  }
+}
+
+async function copiarAlPortapapeles(texto, feedback, mensaje) {
+  try {
+    await navigator.clipboard.writeText(texto);
+    feedback.textContent = mensaje;
+    feedback.className = 'feedback success';
+  } catch {
+    feedback.textContent = 'Tu navegador no ha dejado copiar. Selecciona el texto a mano.';
+    feedback.className = 'feedback error';
+  }
+}
+
+function copiarLista() {
+  const feedback = document.getElementById('entregasFeedback');
+  const conEnlace = entregasCache.filter((e) => e.slug);
+  if (!conEnlace.length) {
+    feedback.textContent = 'Todavía no hay enlaces generados.';
+    feedback.className = 'feedback error';
+    return;
+  }
+  const texto = conEnlace
+    .map((e) => `${e.name}\t${e.category}\t${enlaceDeEntrega(e.slug)}`)
+    .join('\n');
+  copiarAlPortapapeles(texto, feedback,
+    `Copiados ${conEnlace.length} enlaces. Pégalos en Excel: una columna para el equipo, otra para la categoría y otra para el enlace.`);
+}
+
+panels.entregas.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action="copiar-enlace"]');
+  if (!btn) return;
+  copiarAlPortapapeles(enlaceDeEntrega(btn.dataset.slug), document.getElementById('entregasFeedback'), 'Enlace copiado.');
+});
 
 // --- Equipos ---
 

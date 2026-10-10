@@ -183,3 +183,30 @@
   .standings-table { font-size: .8rem; }
   .standings-table th, .standings-table td { padding: 8px 6px; }
 }
+
+/* Torneo aún no publicado */
+.cat-pills[hidden], .tabs[hidden] { display: none; }
+
+.aviso-interno {
+  background: #fff6e5;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-weight: 600;
+  color: var(--blue-900);
+  margin-bottom: 24px;
+}
+.aviso-interno[hidden] { display: none; }
+
+.proximamente {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 24px;
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto;
+}
+.proximamente h2 { margin-bottom: 8px; }
+.proximamente p { color: var(--text-muted); margin: 0; }
+.proximamente[hidden] { display: none; }

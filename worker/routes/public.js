@@ -1,8 +1,12 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
+import { estadoPublicacion } from '../lib/ajustes.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 
 export async function handleListEquipos(request, env) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible, equipos: [] });
+
   const url = new URL(request.url);
   const categoria = clean(url.searchParams.get('categoria') || '').toUpperCase();
 
@@ -15,10 +19,13 @@ export async function handleListEquipos(request, env) {
   query += ' ORDER BY category, group_name, name';
 
   const { results } = await env.DB.prepare(query).bind(...binds).all();
-  return jsonResponse({ equipos: results });
+  return jsonResponse({ publicado, visible, equipos: results });
 }
 
 export async function handleGetEquipo(request, env, idParam) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible });
+
   const id = parseId(idParam);
   if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
 
@@ -28,9 +35,19 @@ export async function handleGetEquipo(request, env, idParam) {
   if (!equipo) return jsonResponse({ error: 'Equipo no encontrado.' }, 404);
 
   const { results: jugadores } = await env.DB.prepare(
-    `SELECT id, dorsal, nombre, apellidos, fecha_nacimiento FROM players
+    `SELECT id, dorsal, nombre, apellidos, substr(fecha_nacimiento, 1, 4) AS anio_nacimiento FROM players
      WHERE team_id = ? ORDER BY dorsal IS NULL, dorsal, apellidos`
   ).bind(id).all();
+
+  let staff = [];
+  try {
+    const res = await env.DB.prepare(
+      'SELECT nombre, apellidos, cargo FROM staff WHERE team_id = ? ORDER BY id'
+    ).bind(id).all();
+    staff = res.results;
+  } catch {
+    staff = []; // la tabla puede no existir todavía
+  }
 
   const { results: partidos } = await env.DB.prepare(
     `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
@@ -46,15 +63,19 @@ export async function handleGetEquipo(request, env, idParam) {
   const proximos = partidos.filter((p) => !p.played);
   const jugados = partidos.filter((p) => p.played).reverse();
 
-  return jsonResponse({ equipo, jugadores, proximos, jugados });
+  return jsonResponse({ publicado, visible, equipo, jugadores, staff, proximos, jugados });
 }
 
 export async function handleGetJugador(request, env, idParam) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible });
+
   const id = parseId(idParam);
   if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
 
   const jugador = await env.DB.prepare(
-    `SELECT p.id, p.dorsal, p.nombre, p.apellidos, p.fecha_nacimiento, p.team_id, t.name AS team_name, t.category
+    `SELECT p.id, p.dorsal, p.nombre, p.apellidos, substr(p.fecha_nacimiento, 1, 4) AS anio_nacimiento,
+            p.team_id, t.name AS team_name, t.category
      FROM players p JOIN teams t ON t.id = p.team_id WHERE p.id = ?`
   ).bind(id).first();
   if (!jugador) return jsonResponse({ error: 'Jugador no encontrado.' }, 404);
@@ -72,7 +93,7 @@ export async function handleGetJugador(request, env, idParam) {
 
   const totalGoles = goles.reduce((sum, g) => sum + g.count, 0);
 
-  return jsonResponse({ jugador, totalGoles, goles });
+  return jsonResponse({ publicado, visible, jugador, totalGoles, goles });
 }
 
 function applyResult(row, gf, gc) {
@@ -92,6 +113,9 @@ function applyResult(row, gf, gc) {
 }
 
 export async function handleClasificacion(request, env) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible, clasificacion: [] });
+
   const url = new URL(request.url);
   const categoria = clean(url.searchParams.get('categoria') || '').toUpperCase();
   const grupo = clean(url.searchParams.get('grupo') || '');
@@ -136,10 +160,13 @@ export async function handleClasificacion(request, env) {
     (a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.name.localeCompare(b.name)
   );
 
-  return jsonResponse({ clasificacion });
+  return jsonResponse({ publicado, visible, clasificacion });
 }
 
 export async function handlePartidos(request, env) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible, partidos: [] });
+
   const url = new URL(request.url);
   const categoria = clean(url.searchParams.get('categoria') || '').toUpperCase();
   const fase = clean(url.searchParams.get('fase') || '');
@@ -161,7 +188,7 @@ export async function handlePartidos(request, env) {
   query += ' ORDER BY m.scheduled_at IS NULL, m.scheduled_at';
 
   const { results: partidos } = await env.DB.prepare(query).bind(...binds).all();
-  if (partidos.length === 0) return jsonResponse({ partidos: [] });
+  if (partidos.length === 0) return jsonResponse({ publicado, visible, partidos: [] });
 
   const ids = partidos.map((p) => p.id);
   const placeholders = ids.map(() => '?').join(',');
@@ -179,5 +206,5 @@ export async function handlePartidos(request, env) {
 
   const withGoles = partidos.map((p) => ({ ...p, goles: golesByMatch.get(p.id) || [] }));
 
-  return jsonResponse({ partidos: withGoles });
+  return jsonResponse({ publicado, visible, partidos: withGoles });
 }

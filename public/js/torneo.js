@@ -2,6 +2,10 @@ const catPills = document.querySelectorAll('#catPills .cat-pill');
 const tabBtns = document.querySelectorAll('#sectionTabs .tab-btn');
 const panelClasificacion = document.getElementById('panelClasificacion');
 const panelEquipos = document.getElementById('panelEquipos');
+const catPillsBox = document.getElementById('catPills');
+const sectionTabs = document.getElementById('sectionTabs');
+const avisoInterno = document.getElementById('avisoInterno');
+const noPublicado = document.getElementById('noPublicado');
 
 const state = {
   categoria: new URLSearchParams(location.search).get('categoria') || 'U9',
@@ -194,6 +198,37 @@ tabBtns.forEach((btn) => {
   });
 });
 
-setActiveCat();
-setActiveTab();
-loadCurrentTab();
+// --- Estado de publicación ---
+
+function mostrarNoPublicado() {
+  noPublicado.hidden = false;
+  catPillsBox.hidden = true;
+  sectionTabs.hidden = true;
+  panelClasificacion.hidden = true;
+  panelEquipos.hidden = true;
+}
+
+function mostrarAvisoInterno() {
+  avisoInterno.hidden = false;
+  avisoInterno.textContent =
+    '🔒 Vista interna: el torneo todavía no es público. Lo estás viendo porque tienes la sesión de administrador abierta.';
+}
+
+async function init() {
+  try {
+    const { publicado, visible } = await fetchJson('/api/equipos');
+    if (!visible) {
+      mostrarNoPublicado();
+      return;
+    }
+    if (!publicado) mostrarAvisoInterno();
+  } catch {
+    // si no se puede consultar el estado, se intenta cargar el torneo igualmente
+  }
+
+  setActiveCat();
+  setActiveTab();
+  loadCurrentTab();
+}
+
+init();

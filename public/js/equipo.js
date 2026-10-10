@@ -37,7 +37,13 @@ async function load() {
   }
 
   try {
-    const { equipo, jugadores, proximos, jugados } = await fetchJson(`/api/equipos/${encodeURIComponent(teamId)}`);
+    const { publicado, visible, equipo, jugadores, staff, proximos, jugados } =
+      await fetchJson(`/api/equipos/${encodeURIComponent(teamId)}`);
+
+    if (!visible) {
+      content.innerHTML = noPublicadoHtml();
+      return;
+    }
 
     document.title = `${equipo.name} — Turia Cup`;
 
@@ -46,12 +52,13 @@ async function load() {
           <tr>
             <td>${j.dorsal ?? ''}</td>
             <td><a href="jugador.html?id=${j.id}">${escapeHtml(j.nombre)} ${escapeHtml(j.apellidos)}</a></td>
-            <td>${j.fecha_nacimiento ? formatFecha(j.fecha_nacimiento) : ''}</td>
+            <td>${j.anio_nacimiento ? escapeHtml(j.anio_nacimiento) : ''}</td>
           </tr>
         `).join('')
       : '';
 
     content.innerHTML = `
+      ${publicado ? '' : avisoInternoHtml()}
       <div class="entity-header">
         ${equipo.logo_url ? `<img src="${escapeHtml(equipo.logo_url)}" alt="">` : ''}
         <div>
@@ -65,10 +72,21 @@ async function load() {
       <h2>Plantilla</h2>
       ${jugadores.length ? `
         <table class="roster-table">
-          <thead><tr><th>Dorsal</th><th>Jugador</th><th>Fecha de nacimiento</th></tr></thead>
+          <thead><tr><th>Dorsal</th><th>Jugador</th><th>Año de nacimiento</th></tr></thead>
           <tbody>${rosterRows}</tbody>
         </table>
       ` : '<p class="empty-state">Plantilla aún no publicada.</p>'}
+
+      ${(staff || []).length ? `
+        <h2 class="subsection-title">Cuerpo técnico</h2>
+        <table class="roster-table">
+          <thead><tr><th>Nombre</th><th>Cargo</th></tr></thead>
+          <tbody>${staff.map((t) => `
+            <tr>
+              <td>${escapeHtml(t.nombre)} ${escapeHtml(t.apellidos)}</td>
+              <td>${t.cargo ? escapeHtml(t.cargo) : ''}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : ''}
 
       <h2 class="subsection-title">Próximos partidos</h2>
       ${renderMatchList(proximos, 'No hay próximos partidos programados.')}
