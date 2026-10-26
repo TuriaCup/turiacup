@@ -21,3 +21,16 @@ CREATE TABLE IF NOT EXISTS staff (
 );
 
 CREATE INDEX IF NOT EXISTS idx_staff_team ON staff (team_id);
+
+-- Copia de seguridad de cada «Guardar» de un club (no se borra sola, ni al borrar el equipo).
+CREATE TABLE IF NOT EXISTS entregas_historial (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  team_id INTEGER NOT NULL,
+  equipo TEXT NOT NULL,
+  categoria TEXT NOT NULL,
+  jugadores TEXT NOT NULL,
+  staff TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_historial_team ON entregas_historial (team_id);

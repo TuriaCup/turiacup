@@ -144,6 +144,10 @@ export async function handleGuardarPlantillaPublica(request, env, slugParam) {
     `UPDATE upload_links SET last_upload_at = datetime('now'), last_upload_count = ? WHERE team_id = ?`
   ).bind(jugadores.length, equipo.id));
 
+  statements.push(env.DB.prepare(
+    'INSERT INTO entregas_historial (team_id, equipo, categoria, jugadores, staff) VALUES (?, ?, ?, ?, ?)'
+  ).bind(equipo.id, equipo.name, equipo.category, JSON.stringify(jugadores), JSON.stringify(staff)));
+
   await env.DB.batch(statements);
 
   return jsonResponse({ ok: true, jugadores: jugadores.length, staff: staff.length });

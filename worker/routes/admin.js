@@ -1,7 +1,7 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { parseRosterExcel } from '../lib/xlsx.js';
 import { isTorneoPublico, setTorneoPublico, subidasAbiertas, setSubidasAbiertas } from '../lib/ajustes.js';
-import { ensureEntregasTables, construirSlug } from '../lib/entregas.js';
+import { ensureEntregasTables, construirSlug, getPlantillaDeEquipo } from '../lib/entregas.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 const FASES_VALIDAS = ['grupos', 'oro', 'plata', 'bronce'];
@@ -59,12 +59,53 @@ export async function handleListEntregas(request, env) {
     `SELECT t.id, t.name, t.category, t.group_name,
             l.slug, l.last_upload_at, l.last_upload_count,
             (SELECT COUNT(*) FROM players p WHERE p.team_id = t.id) AS jugadores,
-            (SELECT COUNT(*) FROM staff s WHERE s.team_id = t.id) AS tecnicos
+            (SELECT COUNT(*) FROM staff s WHERE s.team_id = t.id) AS tecnicos,
+            (SELECT COUNT(*) FROM entregas_historial h WHERE h.team_id = t.id) AS versiones
      FROM teams t LEFT JOIN upload_links l ON l.team_id = t.id
      ORDER BY t.category, t.name`
   ).all();
 
   return jsonResponse({ entregas: results, subidas_abiertas: await subidasAbiertas(env) });
+}
+
+/** Copias guardadas de un equipo (sin los datos de los jugadores), de la más reciente a la más antigua. */
+export async function handleListHistorial(request, env, idParam) {
+  const id = parseId(idParam);
+  if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
+  await ensureEntregasTables(env);
+
+  const { results } = await env.DB.prepare(
+    `SELECT id, created_at, json_array_length(jugadores) AS jugadores, json_array_length(staff) AS tecnicos
+     FROM entregas_historial WHERE team_id = ? ORDER BY id DESC`
+  ).bind(id).all();
+  return jsonResponse({ versiones: results });
+}
+
+/** Una copia completa, lista para convertirla en PDF. */
+export async function handleGetHistorial(request, env, idParam) {
+  const id = parseId(idParam);
+  if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
+  await ensureEntregasTables(env);
+
+  const fila = await env.DB.prepare('SELECT * FROM entregas_historial WHERE id = ?').bind(id).first();
+  if (!fila) return jsonResponse({ error: 'Copia no encontrada.' }, 404);
+  return jsonResponse({
+    equipo: fila.equipo,
+    categoria: fila.categoria,
+    fecha: fila.created_at,
+    jugadores: JSON.parse(fila.jugadores),
+    staff: JSON.parse(fila.staff),
+  });
+}
+
+/** La plantilla tal como está ahora mismo (para equipos sin copias, p. ej. subidos por Excel). */
+export async function handleGetPlantillaActual(request, env, idParam) {
+  const id = parseId(idParam);
+  if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
+  const equipo = await env.DB.prepare('SELECT name, category FROM teams WHERE id = ?').bind(id).first();
+  if (!equipo) return jsonResponse({ error: 'Equipo no encontrado.' }, 404);
+  const { jugadores, staff } = await getPlantillaDeEquipo(env, id);
+  return jsonResponse({ equipo: equipo.name, categoria: equipo.category, fecha: null, jugadores, staff });
 }
 
 /** Crea el enlace de los equipos que todavía no tienen uno. Los existentes no se tocan. */

@@ -24,9 +24,22 @@ const CREATE_STAFF = `CREATE TABLE IF NOT EXISTS staff (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`;
 
+// Copia de seguridad: una fila por cada vez que un club pulsa «Guardar». Nunca se sobrescribe ni se
+// borra sola, y no depende de `teams` (sin FK) para que sobreviva aunque se borre el equipo.
+const CREATE_HISTORIAL = `CREATE TABLE IF NOT EXISTS entregas_historial (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  team_id INTEGER NOT NULL,
+  equipo TEXT NOT NULL,
+  categoria TEXT NOT NULL,
+  jugadores TEXT NOT NULL,
+  staff TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
 export async function ensureEntregasTables(env) {
   await env.DB.prepare(CREATE_UPLOAD_LINKS).run();
   await env.DB.prepare(CREATE_STAFF).run();
+  await env.DB.prepare(CREATE_HISTORIAL).run();
 }
 
 export function slugify(value) {

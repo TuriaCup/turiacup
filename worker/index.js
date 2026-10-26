@@ -18,6 +18,9 @@ import {
   handleUpdateAjustes,
   handleListEntregas,
   handleGenerarEnlaces,
+  handleListHistorial,
+  handleGetHistorial,
+  handleGetPlantillaActual,
   handleCreateEquipo,
   handleUpdateEquipo,
   handleDeleteEquipo,
@@ -98,6 +101,15 @@ async function routeAdmin(request, env, pathname, method) {
 
   if (pathname === '/api/admin/entregas' && method === 'GET') return handleListEntregas(request, env);
   if (pathname === '/api/admin/entregas/enlaces' && method === 'POST') return handleGenerarEnlaces(request, env);
+
+  params = matchPath('/api/admin/entregas/historial/:id', pathname);
+  if (params && method === 'GET') return handleGetHistorial(request, env, params.id);
+
+  params = matchPath('/api/admin/equipos/:id/historial', pathname);
+  if (params && method === 'GET') return handleListHistorial(request, env, params.id);
+
+  params = matchPath('/api/admin/equipos/:id/plantilla-actual', pathname);
+  if (params && method === 'GET') return handleGetPlantillaActual(request, env, params.id);
 
   if (pathname === '/api/admin/equipos' && method === 'POST') return handleCreateEquipo(request, env);
   if (pathname === '/api/admin/equipos/importar' && method === 'POST') return handleImportarEquipos(request, env);

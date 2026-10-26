@@ -376,6 +376,117 @@ async function subirLote() {
 // --- Entregas de plantillas (enlaces por club) ---
 
 let entregasCache = [];
+let entregasCat = null;
+let entregasBusqueda = '';
+
+function pintarEntregas() {
+  const cont = document.getElementById('entregasLista');
+  if (!cont) return;
+  const q = normalizarTexto(entregasBusqueda);
+  const lista = entregasCache.filter((e) => e.category === entregasCat && (!q || normalizarTexto(e.name).includes(q)));
+  if (!lista.length) {
+    cont.innerHTML = '<p>Ningún equipo coincide.</p>';
+    return;
+  }
+  cont.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr><th>Equipo</th><th>Estado</th><th>Jug.</th><th>C. téc.</th><th>Copias</th><th>PDF</th><th>Enlace del club</th></tr>
+      </thead>
+      <tbody>
+        ${lista.map((e) => `
+          <tr>
+            <td>${escapeHtml(e.name)}</td>
+            <td>${e.last_upload_at
+              ? `<span class="entregada">✅ ${escapeHtml(formatFechaHora(e.last_upload_at))}</span>`
+              : '<span class="pendiente">⏳ Pendiente</span>'}</td>
+            <td>${e.jugadores}</td>
+            <td>${e.tecnicos}</td>
+            <td>${e.versiones ? `<button class="btn-small" data-action="ver-copias" data-id="${e.id}">${e.versiones}</button>` : '—'}</td>
+            <td>${e.jugadores || e.versiones
+              ? `<button class="btn-small primary" data-action="pdf-ultimo" data-id="${e.id}" data-versiones="${e.versiones}">PDF</button>`
+              : '—'}</td>
+            <td>${e.slug
+              ? `<div class="enlace-celda">
+                   <input type="text" readonly value="${escapeHtml(enlaceDeEntrega(e.slug))}">
+                   <button class="btn-small" data-action="copiar-enlace" data-slug="${escapeHtml(e.slug)}">Copiar</button>
+                 </div>`
+              : '<span class="pendiente">sin enlace</span>'}</td>
+          </tr>
+          <tr hidden id="copias-${e.id}"><td colspan="7"></td></tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+
+// --- PDF: se abre una hoja limpia y el navegador la imprime / guarda como PDF ---
+
+function filasPdf(lista, columnas) {
+  return lista.map((f, i) => `<tr><td>${i + 1}</td>${columnas.map((c) => `<td>${escapeHtml(f[c] ?? '')}</td>`).join('')}</tr>`).join('');
+}
+
+function abrirPdf(ventana, d) {
+  const jug = (d.jugadores || []).map((j) => ({ ...j, fecha: j.fecha_nacimiento ? formatFecha(j.fecha_nacimiento) : '' }));
+  ventana.document.open();
+  ventana.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    <title>${escapeHtml(d.equipo)} ${escapeHtml(d.categoria)} — Turia Cup</title>
+    <style>
+      body{font-family:Arial,sans-serif;margin:24px;color:#111}
+      h1{margin:0 0 4px} p{margin:2px 0 14px;color:#444}
+      h2{margin:22px 0 6px;font-size:1.05rem}
+      table{width:100%;border-collapse:collapse;font-size:.85rem}
+      th,td{border:1px solid #bbb;padding:5px 8px;text-align:left} th{background:#eee}
+      @media print{ body{margin:0} }
+    </style></head><body>
+    <h1>${escapeHtml(d.equipo)} · ${escapeHtml(d.categoria)}</h1>
+    <p>Turia Cup — Plantilla ${d.fecha ? `entregada el ${escapeHtml(formatFechaHora(d.fecha))}` : 'tal como está ahora'}</p>
+    <h2>Jugadores (${jug.length})</h2>
+    <table><thead><tr><th>#</th><th>Dorsal</th><th>Nombre</th><th>Apellidos</th><th>Nacimiento</th><th>DNI</th></tr></thead>
+    <tbody>${filasPdf(jug, ['dorsal', 'nombre', 'apellidos', 'fecha', 'dni'])}</tbody></table>
+    <h2>Cuerpo técnico (${(d.staff || []).length})</h2>
+    ${(d.staff || []).length
+      ? `<table><thead><tr><th>#</th><th>Nombre</th><th>Apellidos</th><th>Cargo</th><th>DNI</th></tr></thead>
+         <tbody>${filasPdf(d.staff, ['nombre', 'apellidos', 'cargo', 'dni'])}</tbody></table>`
+      : '<p>Sin cuerpo técnico.</p>'}
+    </body></html>`);
+  ventana.document.close();
+  ventana.focus();
+  setTimeout(() => ventana.print(), 300);
+}
+
+async function descargarPdf(origen) {
+  const ventana = window.open('', '_blank'); // se abre ya, antes de pedir los datos, para que no la bloquee el navegador
+  if (!ventana) {
+    alert('Tu navegador ha bloqueado la ventana. Permite las ventanas emergentes para esta página.');
+    return;
+  }
+  ventana.document.write('<p style="font-family:Arial">Preparando PDF…</p>');
+  try {
+    abrirPdf(ventana, await fetchJson(typeof origen === 'function' ? await origen() : origen));
+  } catch (err) {
+    ventana.close();
+    alert(err.message);
+  }
+}
+
+async function verCopias(id) {
+  const fila = document.getElementById(`copias-${id}`);
+  if (!fila) return;
+  if (!fila.hidden) { fila.hidden = true; return; }
+  const celda = fila.firstElementChild;
+  celda.textContent = 'Cargando…';
+  fila.hidden = false;
+  try {
+    const { versiones } = await fetchJson(`/api/admin/equipos/${id}/historial`);
+    celda.innerHTML = versiones.map((v) => `
+      <div style="display:flex;gap:12px;align-items:center;margin:4px 0">
+        <span>${escapeHtml(formatFechaHora(v.created_at))} — ${v.jugadores} jugadores, ${v.tecnicos} c. técnico</span>
+        <button class="btn-small" data-action="pdf-copia" data-copia="${v.id}">PDF</button>
+      </div>`).join('');
+  } catch (err) {
+    celda.textContent = err.message;
+  }
+}
 
 function enlaceDeEntrega(slug) {
   return `${location.origin}/plantilla/${slug}`;
@@ -477,32 +588,29 @@ async function loadEntregas() {
       </p>
     `;
 
+    const cats = [...new Set(entregas.map((e) => e.category))].sort((x, y) => parseInt(x.slice(1)) - parseInt(y.slice(1)));
+    if (!cats.includes(entregasCat)) entregasCat = cats[0];
+
     contenedor.innerHTML = `
-      <table class="admin-table">
-        <thead>
-          <tr><th>Equipo</th><th>Cat.</th><th>Estado</th><th>Jug.</th><th>C. téc.</th><th>Enlace del club</th></tr>
-        </thead>
-        <tbody>
-          ${entregas.map((e) => `
-            <tr>
-              <td>${escapeHtml(e.name)}</td>
-              <td>${escapeHtml(e.category)}</td>
-              <td>${e.last_upload_at
-                ? `<span class="entregada">✅ ${escapeHtml(formatFechaHora(e.last_upload_at))}</span>`
-                : '<span class="pendiente">⏳ Pendiente</span>'}</td>
-              <td>${e.jugadores}</td>
-              <td>${e.tecnicos}</td>
-              <td>${e.slug
-                ? `<div class="enlace-celda">
-                     <input type="text" readonly value="${escapeHtml(enlaceDeEntrega(e.slug))}">
-                     <button class="btn-small" data-action="copiar-enlace" data-slug="${escapeHtml(e.slug)}">Copiar</button>
-                   </div>`
-                : '<span class="pendiente">sin enlace</span>'}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+      <div class="tabs" id="entregasCats">
+        ${cats.map((c) => `<button class="tab-btn ${c === entregasCat ? 'active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}
+          (${entregas.filter((e) => e.category === c).length})</button>`).join('')}
+      </div>
+      <input type="search" id="entregasBuscar" placeholder="Buscar equipo…" value="${escapeHtml(entregasBusqueda)}" style="width:100%;max-width:360px;margin-bottom:12px">
+      <div id="entregasLista"></div>
     `;
+    document.getElementById('entregasCats').addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-cat]');
+      if (!b) return;
+      entregasCat = b.dataset.cat;
+      document.querySelectorAll('#entregasCats .tab-btn').forEach((x) => x.classList.toggle('active', x === b));
+      pintarEntregas();
+    });
+    document.getElementById('entregasBuscar').addEventListener('input', (ev) => {
+      entregasBusqueda = ev.target.value;
+      pintarEntregas();
+    });
+    pintarEntregas();
   } catch (err) {
     contenedor.innerHTML = `<p class="feedback error">${escapeHtml(err.message)}</p>`;
   }
@@ -552,7 +660,19 @@ function copiarLista() {
 }
 
 panels.entregas.addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-action="copiar-enlace"]');
+  const acc = e.target.closest('button[data-action]');
+  if (!acc) return;
+  const a = acc.dataset.action;
+  if (a === 'ver-copias') return verCopias(acc.dataset.id);
+  if (a === 'pdf-copia') return descargarPdf(`/api/admin/entregas/historial/${acc.dataset.copia}`);
+  if (a === 'pdf-ultimo') {
+    if (!Number(acc.dataset.versiones)) return descargarPdf(`/api/admin/equipos/${acc.dataset.id}/plantilla-actual`);
+    return descargarPdf(async () => {
+      const { versiones } = await fetchJson(`/api/admin/equipos/${acc.dataset.id}/historial`);
+      return `/api/admin/entregas/historial/${versiones[0].id}`;
+    });
+  }
+  const btn = acc.matches('[data-action="copiar-enlace"]') ? acc : null;
   if (!btn) return;
   copiarAlPortapapeles(enlaceDeEntrega(btn.dataset.slug), document.getElementById('entregasFeedback'), 'Enlace copiado.');
 });
