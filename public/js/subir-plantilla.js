@@ -15,6 +15,7 @@ function filaJugador(j = {}) {
       <td><input type="text" maxlength="120" data-campo="apellidos" value="${escapeHtml(j.apellidos ?? '')}"></td>
       <td class="col-fecha"><input type="date" data-campo="fecha_nacimiento" value="${escapeHtml(j.fecha_nacimiento ?? '')}"></td>
       <td class="col-dni"><input type="text" maxlength="20" data-campo="dni" value="${escapeHtml(j.dni ?? '')}"></td>
+      <td class="col-intol"><input type="text" maxlength="200" data-campo="intolerancias" placeholder="Ninguna" value="${escapeHtml(j.intolerancias ?? '')}"></td>
       <td class="col-quitar"><button type="button" class="btn-quitar" data-accion="quitar" title="Quitar">✕</button></td>
     </tr>
   `;
@@ -58,11 +59,11 @@ function render() {
     <div class="plantilla-bloque">
       <h2>Jugadores</h2>
       <p class="ayuda">Rellena <strong>nombre, apellidos, fecha de nacimiento y DNI</strong> de cada jugador.
-      La fecha de nacimiento es imprescindible para verificar la categoría. Si más adelante necesitas
+      La fecha de nacimiento es imprescindible para verificar la categoría. En <strong>intolerancias / alergias</strong> indica las alimentarias de cada jugador (déjalo vacío si no tiene ninguna). Si más adelante necesitas
       corregir algo, vuelve a este mismo enlace mientras el plazo siga abierto.</p>
       <table class="plantilla-tabla">
         <thead>
-          <tr><th>Dorsal</th><th>Nombre *</th><th>Apellidos *</th><th>Fecha de nacimiento *</th><th>DNI *</th><th></th></tr>
+          <tr><th>Dorsal</th><th>Nombre *</th><th>Apellidos *</th><th>Fecha de nacimiento *</th><th>DNI *</th><th>Intolerancias / alergias</th><th></th></tr>
         </thead>
         <tbody id="tbodyJugadores">${filasJugadores}</tbody>
       </table>

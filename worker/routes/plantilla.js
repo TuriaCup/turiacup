@@ -16,12 +16,14 @@ function validarJugador(fila, indice) {
   const nombre = clean(fila.nombre);
   const apellidos = clean(fila.apellidos);
   const dni = clean(fila.dni);
+  const intolerancias = clean(fila.intolerancias);
   const fecha_nacimiento = clean(fila.fecha_nacimiento);
   const etiqueta = `Jugador ${indice + 1}`;
 
   if (!nombre || !apellidos) return { error: `${etiqueta}: el nombre y los apellidos son obligatorios.` };
   if (nombre.length > 120 || apellidos.length > 120) return { error: `${etiqueta}: nombre o apellidos demasiado largos.` };
   if (dni.length > 20) return { error: `${etiqueta}: el DNI es demasiado largo.` };
+  if (intolerancias.length > 200) return { error: `${etiqueta}: las intolerancias son demasiado largas.` };
   if (!fecha_nacimiento) return { error: `${etiqueta}: falta la fecha de nacimiento.` };
   if (!FECHA_RE.test(fecha_nacimiento)) {
     return { error: `${etiqueta}: la fecha de nacimiento no es válida.` };
@@ -34,7 +36,7 @@ function validarJugador(fila, indice) {
     dorsal = n;
   }
 
-  return { fila: { dorsal, nombre, apellidos, fecha_nacimiento, dni: dni || null } };
+  return { fila: { dorsal, nombre, apellidos, fecha_nacimiento, dni: dni || null, intolerancias: intolerancias || null } };
 }
 
 function validarTecnico(fila, indice) {
@@ -132,8 +134,8 @@ export async function handleGuardarPlantillaPublica(request, env, slugParam) {
   ];
   for (const j of jugadores) {
     statements.push(env.DB.prepare(
-      'INSERT INTO players (team_id, dorsal, nombre, apellidos, fecha_nacimiento, dni) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(equipo.id, j.dorsal, j.nombre, j.apellidos, j.fecha_nacimiento, j.dni));
+      'INSERT INTO players (team_id, dorsal, nombre, apellidos, fecha_nacimiento, dni, intolerancias) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(equipo.id, j.dorsal, j.nombre, j.apellidos, j.fecha_nacimiento, j.dni, j.intolerancias));
   }
   for (const t of staff) {
     statements.push(env.DB.prepare(

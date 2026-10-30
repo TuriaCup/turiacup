@@ -1,13 +1,13 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { parseRosterExcel } from '../lib/xlsx.js';
 import { isTorneoPublico, setTorneoPublico, subidasAbiertas, setSubidasAbiertas } from '../lib/ajustes.js';
-import { ensureEntregasTables, construirSlug, getPlantillaDeEquipo } from '../lib/entregas.js';
+import { ensureEntregasTables, ensureIntolerancias, construirSlug, getPlantillaDeEquipo } from '../lib/entregas.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 const FASES_VALIDAS = ['grupos', 'oro', 'plata', 'bronce'];
 const TEAM_MAX_LEN = { name: 120, city: 120, logo_url: 500, group_name: 20 };
 const MATCH_MAX_LEN = { group_name: 20, round_name: 60, venue: 120 };
-const PLAYER_MAX_LEN = { nombre: 120, apellidos: 120, dni: 20 };
+const PLAYER_MAX_LEN = { nombre: 120, apellidos: 120, dni: 20, intolerancias: 200 };
 const MAX_LINEAS_IMPORT = 500;
 const LOTE_IMPORT = 50;
 
@@ -308,8 +308,9 @@ export async function handleListJugadoresAdmin(request, env, teamIdParam) {
   const teamId = parseId(teamIdParam);
   if (!teamId) return jsonResponse({ error: 'Id de equipo inválido.' }, 400);
 
+  await ensureIntolerancias(env);
   const { results: jugadores } = await env.DB.prepare(
-    `SELECT id, dorsal, nombre, apellidos, fecha_nacimiento, dni FROM players
+    `SELECT id, dorsal, nombre, apellidos, fecha_nacimiento, dni, intolerancias FROM players
      WHERE team_id = ? ORDER BY dorsal IS NULL, dorsal, apellidos`
   ).bind(teamId).all();
 
@@ -345,6 +346,7 @@ export async function handleUploadPlantilla(request, env, teamIdParam) {
     return jsonResponse({ error: 'No se encontraron filas válidas en el Excel.', errores: errors }, 400);
   }
 
+  await ensureIntolerancias(env);
   const statements = [
     env.DB.prepare('DELETE FROM goals WHERE player_id IN (SELECT id FROM players WHERE team_id = ?)').bind(teamId),
     env.DB.prepare('DELETE FROM players WHERE team_id = ?').bind(teamId),
@@ -352,8 +354,8 @@ export async function handleUploadPlantilla(request, env, teamIdParam) {
   for (const row of rows) {
     statements.push(
       env.DB.prepare(
-        'INSERT INTO players (team_id, dorsal, nombre, apellidos, fecha_nacimiento, dni) VALUES (?, ?, ?, ?, ?, ?)'
-      ).bind(teamId, row.dorsal, row.nombre, row.apellidos, row.fecha_nacimiento, row.dni)
+        'INSERT INTO players (team_id, dorsal, nombre, apellidos, fecha_nacimiento, dni, intolerancias) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(teamId, row.dorsal, row.nombre, row.apellidos, row.fecha_nacimiento, row.dni, row.intolerancias)
     );
   }
   await env.DB.batch(statements);
@@ -374,11 +376,12 @@ export async function handleUpdateJugador(request, env, idParam) {
   const nombre = clean(payload.nombre);
   const apellidos = clean(payload.apellidos);
   const dni = clean(payload.dni);
+  const intolerancias = clean(payload.intolerancias);
   const fecha_nacimiento = clean(payload.fecha_nacimiento);
 
   if (!nombre || !apellidos) return jsonResponse({ error: 'Nombre y apellidos son obligatorios.' }, 400);
   for (const [field, max] of Object.entries(PLAYER_MAX_LEN)) {
-    const value = { nombre, apellidos, dni }[field];
+    const value = { nombre, apellidos, dni, intolerancias }[field];
     if (value && value.length > max) return jsonResponse({ error: `El campo ${field} es demasiado largo.` }, 400);
   }
   if (fecha_nacimiento && !/^\d{4}-\d{2}-\d{2}$/.test(fecha_nacimiento)) {
@@ -392,9 +395,10 @@ export async function handleUpdateJugador(request, env, idParam) {
     dorsal = n;
   }
 
+  await ensureIntolerancias(env);
   await env.DB.prepare(
-    'UPDATE players SET dorsal = ?, nombre = ?, apellidos = ?, fecha_nacimiento = ?, dni = ? WHERE id = ?'
-  ).bind(dorsal, nombre, apellidos, fecha_nacimiento || null, dni || null, id).run();
+    'UPDATE players SET dorsal = ?, nombre = ?, apellidos = ?, fecha_nacimiento = ?, dni = ?, intolerancias = ? WHERE id = ?'
+  ).bind(dorsal, nombre, apellidos, fecha_nacimiento || null, dni || null, intolerancias || null, id).run();
 
   return jsonResponse({ ok: true });
 }

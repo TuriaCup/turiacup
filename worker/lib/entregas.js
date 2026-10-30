@@ -36,7 +36,20 @@ const CREATE_HISTORIAL = `CREATE TABLE IF NOT EXISTS entregas_historial (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`;
 
+/** Añade la columna `intolerancias` a players si aún no existe (las bases antiguas no la tienen). */
+let intoleranciasLista = false;
+export async function ensureIntolerancias(env) {
+  if (intoleranciasLista) return;
+  try {
+    await env.DB.prepare('ALTER TABLE players ADD COLUMN intolerancias TEXT').run();
+  } catch {
+    // ya existe
+  }
+  intoleranciasLista = true;
+}
+
 export async function ensureEntregasTables(env) {
+  await ensureIntolerancias(env);
   await env.DB.prepare(CREATE_UPLOAD_LINKS).run();
   await env.DB.prepare(CREATE_STAFF).run();
   await env.DB.prepare(CREATE_HISTORIAL).run();
@@ -70,8 +83,9 @@ export async function getEquipoPorSlug(env, slug) {
 }
 
 export async function getPlantillaDeEquipo(env, teamId) {
+  await ensureIntolerancias(env);
   const { results: jugadores } = await env.DB.prepare(
-    `SELECT dorsal, nombre, apellidos, fecha_nacimiento, dni FROM players
+    `SELECT dorsal, nombre, apellidos, fecha_nacimiento, dni, intolerancias FROM players
      WHERE team_id = ? ORDER BY dorsal IS NULL, dorsal, apellidos`
   ).bind(teamId).all();
 

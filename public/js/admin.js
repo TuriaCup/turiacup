@@ -441,8 +441,8 @@ function abrirPdf(ventana, d) {
     <h1>${escapeHtml(d.equipo)} · ${escapeHtml(d.categoria)}</h1>
     <p>Turia Cup — Plantilla ${d.fecha ? `entregada el ${escapeHtml(formatFechaHora(d.fecha))}` : 'tal como está ahora'}</p>
     <h2>Jugadores (${jug.length})</h2>
-    <table><thead><tr><th>#</th><th>Dorsal</th><th>Nombre</th><th>Apellidos</th><th>Nacimiento</th><th>DNI</th></tr></thead>
-    <tbody>${filasPdf(jug, ['dorsal', 'nombre', 'apellidos', 'fecha', 'dni'])}</tbody></table>
+    <table><thead><tr><th>#</th><th>Dorsal</th><th>Nombre</th><th>Apellidos</th><th>Nacimiento</th><th>DNI</th><th>Intolerancias</th></tr></thead>
+    <tbody>${filasPdf(jug, ['dorsal', 'nombre', 'apellidos', 'fecha', 'dni', 'intolerancias'])}</tbody></table>
     <h2>Cuerpo técnico (${(d.staff || []).length})</h2>
     ${(d.staff || []).length
       ? `<table><thead><tr><th>#</th><th>Nombre</th><th>Apellidos</th><th>Cargo</th><th>DNI</th></tr></thead>
@@ -833,7 +833,7 @@ async function loadPlantilla(teamId) {
       <p class="feedback" id="uploadFeedback"></p>
     </div>
     <table class="admin-table">
-      <thead><tr><th>Dorsal</th><th>Nombre</th><th>Apellidos</th><th>Fecha de nacimiento</th><th>DNI</th><th></th></tr></thead>
+      <thead><tr><th>Dorsal</th><th>Nombre</th><th>Apellidos</th><th>Fecha de nacimiento</th><th>DNI</th><th>Intolerancias</th><th></th></tr></thead>
       <tbody id="jugadoresTbody"><tr><td colspan="6">Cargando…</td></tr></tbody>
     </table>
   `;
@@ -879,7 +879,7 @@ async function loadJugadoresTable(teamId) {
     const { jugadores } = await fetchJson(`/api/admin/equipos/${teamId}/jugadores`);
     jugadoresCache = jugadores;
     if (!jugadores.length) {
-      tbody.innerHTML = '<tr><td colspan="6">Sin jugadores todavía.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7">Sin jugadores todavía.</td></tr>';
       return;
     }
     tbody.innerHTML = jugadores.map((j) => `
@@ -889,6 +889,7 @@ async function loadJugadoresTable(teamId) {
         <td>${escapeHtml(j.apellidos)}</td>
         <td>${j.fecha_nacimiento ? formatFecha(j.fecha_nacimiento) : ''}</td>
         <td>${j.dni ? escapeHtml(j.dni) : ''}</td>
+        <td>${j.intolerancias ? escapeHtml(j.intolerancias) : ''}</td>
         <td class="actions">
           <button class="btn-small" data-action="edit-jugador" data-id="${j.id}">Editar</button>
           <button class="btn-small danger" data-action="delete-jugador" data-id="${j.id}">Eliminar</button>
@@ -896,7 +897,7 @@ async function loadJugadoresTable(teamId) {
       </tr>
     `).join('');
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6">${escapeHtml(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7">${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -910,6 +911,7 @@ function startEditJugador(id) {
     <td><input type="text" value="${escapeHtml(j.apellidos)}" data-field="apellidos"></td>
     <td><input type="date" value="${j.fecha_nacimiento ?? ''}" data-field="fecha_nacimiento"></td>
     <td><input type="text" value="${j.dni ?? ''}" data-field="dni" style="width:100px"></td>
+    <td><input type="text" value="${escapeHtml(j.intolerancias ?? '')}" data-field="intolerancias"></td>
     <td class="actions">
       <button class="btn-small primary" data-action="save-jugador" data-id="${id}">Guardar</button>
       <button class="btn-small" data-action="cancel-edit-jugador" data-id="${id}">Cancelar</button>
@@ -926,6 +928,7 @@ async function saveJugador(id) {
     apellidos: get('apellidos'),
     fecha_nacimiento: get('fecha_nacimiento') || null,
     dni: get('dni') || null,
+    intolerancias: get('intolerancias') || null,
   };
   try {
     await fetchJson(`/api/admin/jugadores/${id}`, {

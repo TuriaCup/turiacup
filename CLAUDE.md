@@ -117,6 +117,7 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
   la fecha solo devuelve `substr(fecha_nacimiento, 1, 4) AS anio_nacimiento`. El dato completo solo está en
   `/api/admin/equipos/:id/jugadores` y en `/api/plantilla/:slug` (el enlace del propio club). Mantenlo así:
   son datos de menores.
+- **`players.intolerancias` se crea sola**: `ensureIntolerancias` (`worker/lib/entregas.js`) hace el `ALTER TABLE` la primera vez que se toca la plantilla; los jugadores antiguos quedan con la casilla en blanco (NULL). Es opcional y no bloquea el guardado.
 - **`wrangler d1 execute` sin `--remote` va a la base local** de `.wrangler/`, no a producción.
 - **En `/api/plantilla/:slug` la fecha de nacimiento es obligatoria y el DNI no**: la pantalla marca los dos
   con asterisco (a propósito: si se dice que el DNI es opcional, no lo rellenan), pero solo la fecha bloquea

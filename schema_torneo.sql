@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS players (
   apellidos TEXT NOT NULL,
   fecha_nacimiento TEXT,
   dni TEXT,
+  intolerancias TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

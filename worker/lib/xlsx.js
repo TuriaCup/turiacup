@@ -6,6 +6,7 @@ const HEADER_ALIASES = {
   apellidos: ['apellidos', 'apellido'],
   fecha_nacimiento: ['fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'fecha'],
   dni: ['dni', 'documento', 'pasaporte'],
+  intolerancias: ['intolerancias', 'intolerancia', 'alergias', 'alergias e intolerancias'],
 };
 
 function normalizeHeader(h) {
@@ -37,7 +38,7 @@ function parseFecha(value) {
 
 /**
  * @param {Uint8Array} buffer
- * @returns {{ rows: Array<{dorsal: number|null, nombre: string, apellidos: string, fecha_nacimiento: string|null, dni: string|null}>, errors: Array<{row: number, message: string}> }}
+ * @returns {{ rows: Array<{dorsal: number|null, nombre: string, apellidos: string, fecha_nacimiento: string|null, dni: string|null, intolerancias: string|null}>, errors: Array<{row: number, message: string}> }}
  */
 export function parseRosterExcel(buffer) {
   let workbook;
@@ -110,7 +111,9 @@ export function parseRosterExcel(buffer) {
 
     const dni = String(get(line, 'dni') ?? '').trim().slice(0, 20) || null;
 
-    rows.push({ dorsal, nombre, apellidos, fecha_nacimiento: fechaNacimiento, dni });
+    const intolerancias = String(get(line, 'intolerancias') ?? '').trim().slice(0, 200) || null;
+
+    rows.push({ dorsal, nombre, apellidos, fecha_nacimiento: fechaNacimiento, dni, intolerancias });
   }
 
   return { rows, errors };
