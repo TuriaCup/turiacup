@@ -22,6 +22,7 @@ const estadoBanner = document.getElementById('estadoBanner');
 const panels = {
   equipos: document.getElementById('panelEquipos'),
   plantillas: document.getElementById('panelPlantillas'),
+  grupos: document.getElementById('panelGrupos'),
   partidos: document.getElementById('panelPartidos'),
   importar: document.getElementById('panelImportar'),
   entregas: document.getElementById('panelEntregas'),
@@ -109,10 +110,68 @@ function showTab(tab) {
   Object.entries(panels).forEach(([key, el]) => { el.hidden = key !== tab; });
   if (tab === 'equipos') renderEquiposTab();
   if (tab === 'plantillas') renderPlantillasTab();
+  if (tab === 'grupos') renderGruposTab();
   if (tab === 'partidos') renderPartidosTab();
   if (tab === 'importar') renderImportarTab();
   if (tab === 'entregas') renderEntregasTab();
   if (tab === 'publicacion') renderPublicacionTab();
+}
+
+// --- Pestaña de grupos (vista previa de cómo se verán en la web) ---
+
+let gruposCat = null;
+
+async function renderGruposTab() {
+  panels.grupos.innerHTML = '<p class="empty-state">Cargando…</p>';
+  try {
+    await loadTeamsCache();
+  } catch (err) {
+    panels.grupos.innerHTML = `<p class="empty-state">${escapeHtml(err.message)}</p>`;
+    return;
+  }
+  const cats = [...new Set(teamsCache.map((t) => t.category))].sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+  if (!cats.includes(gruposCat)) gruposCat = cats[0];
+  panels.grupos.innerHTML = `
+    <div class="admin-toolbar"><h2>Grupos</h2></div>
+    <p style="color:#666;margin-bottom:16px">Así se verán los grupos en la web. Los equipos con nombre tipo <strong>U9D5</strong> son ficticios (pendientes de sustituir por el club real).</p>
+    <div class="tabs" id="gruposCats">
+      ${cats.map((c) => `<button class="tab-btn ${c === gruposCat ? 'active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}
+        (${teamsCache.filter((t) => t.category === c).length})</button>`).join('')}
+    </div>
+    <div id="gruposLista"></div>
+  `;
+  document.getElementById('gruposCats').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-cat]');
+    if (!b) return;
+    gruposCat = b.dataset.cat;
+    document.querySelectorAll('#gruposCats .tab-btn').forEach((x) => x.classList.toggle('active', x === b));
+    pintarGrupos();
+  });
+  pintarGrupos();
+}
+
+function pintarGrupos() {
+  const equipos = teamsCache.filter((t) => t.category === gruposCat);
+  const grupos = [...new Set(equipos.map((t) => t.group_name).filter(Boolean))].sort();
+  const sin = equipos.filter((t) => !t.group_name);
+  const ficticio = (n) => /^U\d+[A-Z]\d+$/.test(n);
+  const tabla = (lista) => `
+    <table class="standings-table">
+      <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead>
+      <tbody>${lista.map((t, i) => `
+        <tr><td>${i + 1}</td><td${ficticio(t.name) ? ' class="ficticio"' : ''}>${escapeHtml(t.name)}</td>
+        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td class="pts">0</td></tr>`).join('')}
+      </tbody>
+    </table>`;
+  const porNombre = (a, b) => a.name.localeCompare(b.name, 'es');
+  const bloques = grupos.map((g) => {
+    const lista = equipos.filter((t) => t.group_name === g).sort(porNombre);
+    return `<div class="group-block"><h3>Grupo ${escapeHtml(g)} <small>(${lista.length} equipos)</small></h3>${tabla(lista)}</div>`;
+  });
+  if (sin.length) {
+    bloques.push(`<div class="group-block"><h3>Sin grupo <small>(${sin.length} equipos)</small></h3>${tabla(sin.sort(porNombre))}</div>`);
+  }
+  document.getElementById('gruposLista').innerHTML = bloques.join('') || '<p class="empty-state">Todavía no hay grupos asignados.</p>';
 }
 
 // --- Pestaña de publicación ---

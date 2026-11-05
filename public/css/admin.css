@@ -198,3 +198,14 @@
   color: var(--text-muted);
   background: var(--bg);
 }
+
+/* Pestaña Grupos: misma tabla que la clasificación pública */
+.group-block { margin-bottom: 32px; }
+.group-block h3 { margin-bottom: 12px; }
+.group-block h3 small { font-weight: 400; color: #777; font-size: .8rem; }
+.standings-table { width: 100%; border-collapse: collapse; background: var(--white); border: 1px solid var(--border); font-size: .92rem; }
+.standings-table th, .standings-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); }
+.standings-table th { background: var(--blue-900); color: var(--white); font-weight: 600; font-size: .8rem; }
+.standings-table td:nth-child(2), .standings-table th:nth-child(2) { text-align: left; }
+.standings-table td.ficticio { color: #999; font-style: italic; }
+.standings-table td.pts { font-weight: 800; color: var(--blue-700); }
