@@ -408,3 +408,38 @@ h3 { font-size: 1.05rem; color: var(--blue-900); }
   .doc-viewer { display: none; }
   .doc-fallback { display: block; }
 }
+
+/* Banner de patrocinadores */
+.sponsors-banner {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px 20px;
+  margin-bottom: 28px;
+  text-align: center;
+}
+.sponsors-title {
+  margin: 0 0 12px;
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.sponsors-logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 20px 40px;
+}
+.sponsors-logos img {
+  height: 56px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+}
+@media (max-width: 600px) {
+  .sponsors-logos { gap: 16px 24px; }
+  .sponsors-logos img { height: 44px; max-width: 110px; }
+}
