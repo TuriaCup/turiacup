@@ -87,6 +87,10 @@ function render() {
       <button type="button" class="btn btn-primary" id="guardarBtn">Guardar plantilla</button>
       <span class="feedback" id="feedback"></span>
     </div>
+
+    <p class="ayuda">Al inscribir a sus jugadores en el torneo, el club acepta que las imágenes (fotografías y vídeos)
+      captadas durante la competición en las que aparezcan podrán ser utilizadas por la organización para la
+      difusión y la publicidad del evento.</p>
   `;
 
   if (soloLectura) {
