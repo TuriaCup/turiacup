@@ -190,13 +190,14 @@ export async function handlePartidos(request, env) {
   const { results: partidos } = await env.DB.prepare(query).bind(...binds).all();
   if (partidos.length === 0) return jsonResponse({ publicado, visible, partidos: [] });
 
-  const ids = partidos.map((p) => p.id);
-  const placeholders = ids.map(() => '?').join(',');
-  const { results: goles } = await env.DB.prepare(
-    `SELECT g.match_id, g.team_id, g.count, p.id AS player_id, p.nombre, p.apellidos, p.dorsal
+  // Los goles se filtran con la misma condición que los partidos (subconsulta) y no con una
+  // lista de ids: D1 admite como mucho 100 parámetros por consulta y una categoría tiene 140 partidos.
+  let golesQuery = `SELECT g.match_id, g.team_id, g.count, p.id AS player_id, p.nombre, p.apellidos, p.dorsal
      FROM goals g JOIN players p ON p.id = g.player_id
-     WHERE g.match_id IN (${placeholders})`
-  ).bind(...ids).all();
+     JOIN matches m ON m.id = g.match_id
+     WHERE m.category = ?`;
+  if (fase) golesQuery += ' AND m.phase = ?';
+  const { results: goles } = await env.DB.prepare(golesQuery).bind(...binds).all();
 
   const golesByMatch = new Map();
   for (const g of goles) {
