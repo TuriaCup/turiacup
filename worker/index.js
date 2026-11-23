@@ -31,6 +31,7 @@ import {
   handleGetHistorial,
   handleGetPlantillaActual,
   handleCreateEquipo,
+  handleSetProfesional,
   handleUpdateEquipo,
   handleDeleteEquipo,
   handleListJugadoresAdmin,
@@ -113,6 +114,9 @@ async function routeAdmin(request, env, pathname, method) {
 
   params = matchPath('/api/admin/entregas/historial/:id', pathname);
   if (params && method === 'GET') return handleGetHistorial(request, env, params.id);
+
+  params = matchPath('/api/admin/equipos/:id/profesional', pathname);
+  if (params && method === 'PUT') return handleSetProfesional(request, env, params.id);
 
   params = matchPath('/api/admin/equipos/:id/historial', pathname);
   if (params && method === 'GET') return handleListHistorial(request, env, params.id);

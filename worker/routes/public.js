@@ -1,6 +1,7 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { estadoPublicacion } from '../lib/ajustes.js';
 import { ensureDirecto, listarEventos } from '../lib/directo.js';
+import { getProfesionales, compararEquipos } from '../lib/profesionales.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 
@@ -20,7 +21,12 @@ export async function handleListEquipos(request, env) {
   query += ' ORDER BY category, group_name, name';
 
   const { results } = await env.DB.prepare(query).bind(...binds).all();
-  return jsonResponse({ publicado, visible, equipos: results });
+  const pros = await getProfesionales(env);
+  const equipos = results.map((t) => ({ ...t, profesional: pros.has(t.id) }));
+  // Por categoría y grupo; dentro de cada grupo, profesionales primero y el resto alfabético.
+  equipos.sort((a, b) => a.category.localeCompare(b.category, 'es', { numeric: true })
+    || (a.group_name || '~').localeCompare(b.group_name || '~', 'es') || compararEquipos(a, b));
+  return jsonResponse({ publicado, visible, equipos });
 }
 
 export async function handleGetEquipo(request, env, idParam) {
@@ -146,10 +152,11 @@ export async function handleClasificacion(request, env) {
   }
   const { results: matches } = await env.DB.prepare(matchesQuery).bind(...matchBinds).all();
 
+  const pros = await getProfesionales(env);
   const table = new Map();
   for (const t of teams) {
     table.set(t.id, {
-      team_id: t.id, name: t.name, group_name: t.group_name, logo_url: t.logo_url,
+      team_id: t.id, name: t.name, group_name: t.group_name, logo_url: t.logo_url, profesional: pros.has(t.id),
       pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dg: 0, pts: 0,
     });
   }
@@ -162,7 +169,7 @@ export async function handleClasificacion(request, env) {
   }
 
   const clasificacion = [...table.values()].sort(
-    (a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.name.localeCompare(b.name)
+    (a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || compararEquipos(a, b)
   );
 
   return jsonResponse({ publicado, visible, clasificacion });

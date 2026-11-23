@@ -2,6 +2,7 @@ import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { parseRosterExcel } from '../lib/xlsx.js';
 import { isTorneoPublico, setTorneoPublico, subidasAbiertas, setSubidasAbiertas } from '../lib/ajustes.js';
 import { ensureDirecto } from '../lib/directo.js';
+import { setProfesional } from '../lib/profesionales.js';
 import { ensureEntregasTables, ensureIntolerancias, construirSlug, getPlantillaDeEquipo } from '../lib/entregas.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
@@ -575,4 +576,17 @@ export async function handleResultadoPartido(request, env, idParam) {
   await env.DB.batch(statements);
 
   return jsonResponse({ ok: true });
+}
+
+// PUT /api/admin/equipos/:id/profesional   { profesional: true | false }
+export async function handleSetProfesional(request, env, idParam) {
+  const id = parseId(idParam);
+  if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
+  const equipo = await env.DB.prepare('SELECT id FROM teams WHERE id = ?').bind(id).first();
+  if (!equipo) return jsonResponse({ error: 'Equipo no encontrado.' }, 404);
+  let payload = null;
+  try { payload = await request.json(); } catch { /* sin cuerpo */ }
+  if (!payload || typeof payload.profesional !== 'boolean') return jsonResponse({ error: 'Solicitud inválida.' }, 400);
+  await setProfesional(env, id, payload.profesional);
+  return jsonResponse({ ok: true, profesional: payload.profesional });
 }

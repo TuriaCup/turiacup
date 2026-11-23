@@ -167,10 +167,10 @@ function pintarGrupos() {
   const sin = equipos.filter((t) => !t.group_name);
   const ficticio = (n) => /^U\d+[A-Z]\d+$/.test(n);
   const tabla = (lista) => tablaGrupoHtml(lista.map((t) => ({
-    team_id: t.id, name: t.name, logo_url: t.logo_url, ficticio: ficticio(t.name),
+    team_id: t.id, name: t.name, logo_url: t.logo_url, ficticio: ficticio(t.name), profesional: t.profesional,
     pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dg: 0, pts: 0,
   })));
-  const porNombre = (a, b) => a.name.localeCompare(b.name, 'es');
+  const porNombre = (a, b) => (b.profesional ? 1 : 0) - (a.profesional ? 1 : 0) || a.name.localeCompare(b.name, 'es');
   const bloques = grupos.map((g) => {
     const lista = equipos.filter((t) => t.group_name === g).sort(porNombre);
     return `<div class="grupo-bloque">${cabeceraGrupoHtml(g, lista.length)}${tabla(lista)}</div>`;
@@ -753,7 +753,7 @@ function renderEquiposTab() {
     </div>
     <div id="equipoFormContainer"></div>
     <table class="admin-table">
-      <thead><tr><th>Nombre</th><th>Categoría</th><th>Grupo</th><th>Ciudad</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Categoría</th><th>Grupo</th><th>Ciudad</th><th title="Los profesionales salen primero en su grupo">Pro</th><th></th></tr></thead>
       <tbody id="equiposTbody"></tbody>
     </table>
   `;
@@ -768,7 +768,7 @@ async function loadEquiposTable() {
     const { equipos } = await fetchJson('/api/equipos');
     teamsCache = equipos;
     if (!equipos.length) {
-      tbody.innerHTML = '<tr><td colspan="5">No hay equipos todavía.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">No hay equipos todavía.</td></tr>';
       return;
     }
     tbody.innerHTML = equipos.map((e) => `
@@ -777,6 +777,7 @@ async function loadEquiposTable() {
         <td>${escapeHtml(e.category)}</td>
         <td>${e.group_name ? escapeHtml(e.group_name) : ''}</td>
         <td>${e.city ? escapeHtml(e.city) : ''}</td>
+        <td><input type="checkbox" class="chk-pro" data-id="${e.id}" ${e.profesional ? 'checked' : ''} title="Club profesional: sale primero en su grupo"></td>
         <td class="actions">
           <button class="btn-small" data-action="edit-equipo" data-id="${e.id}">Editar</button>
           <button class="btn-small danger" data-action="delete-equipo" data-id="${e.id}">Eliminar</button>
@@ -1654,3 +1655,22 @@ panels.partidos.addEventListener('click', async (e) => {
 });
 
 checkAuth();
+
+// Casilla «Pro» de la lista de equipos: se guarda al marcarla.
+panels.equipos.addEventListener('change', async (e) => {
+  const chk = e.target.closest('.chk-pro');
+  if (!chk) return;
+  chk.disabled = true;
+  try {
+    await fetchJson(`/api/admin/equipos/${chk.dataset.id}/profesional`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profesional: chk.checked }),
+    });
+    const t = teamsCache.find((x) => String(x.id) === chk.dataset.id);
+    if (t) t.profesional = chk.checked;
+  } catch (err) {
+    chk.checked = !chk.checked;
+    alert(err.message);
+  }
+  chk.disabled = false;
+});
