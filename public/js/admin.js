@@ -169,7 +169,7 @@ function pintarGrupos() {
   const tabla = (lista) => tablaGrupoHtml(lista.map((t) => ({
     team_id: t.id, name: t.name, logo_url: t.logo_url, ficticio: ficticio(t.name), profesional: t.profesional,
     pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dg: 0, pts: 0,
-  })));
+  })), { enlaces: true, nuevaPestana: true });
   const porNombre = (a, b) => (b.profesional ? 1 : 0) - (a.profesional ? 1 : 0) || a.name.localeCompare(b.name, 'es');
   const bloques = grupos.map((g) => {
     const lista = equipos.filter((t) => t.group_name === g).sort(porNombre);

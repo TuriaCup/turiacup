@@ -115,13 +115,13 @@ function cabeceraGrupoHtml(nombre, numEquipos) {
 // opciones: enlaces (nombre enlaza al club), miId (resalta ese equipo)
 function tablaGrupoHtml(rows, opciones = {}) {
   if (!rows.length) return '<p class="empty-state">Sin equipos en este grupo.</p>';
-  const { enlaces, miId } = opciones;
+  const { enlaces, miId, nuevaPestana } = opciones;
   const dg = (n) => `${n > 0 ? '+' : ''}${n}`;
   const filas = rows.map((r, i) => `
-    <tr class="${miId != null && Number(r.team_id) === Number(miId) ? 'tg-yo' : ''}${enlaces ? ' tg-link' : ''}"${enlaces ? ` data-href="equipo.html?id=${encodeURIComponent(r.team_id)}"` : ''}>
+    <tr class="${miId != null && Number(r.team_id) === Number(miId) ? 'tg-yo' : ''}${enlaces ? ' tg-link' : ''}"${enlaces ? ` data-href="equipo.html?id=${encodeURIComponent(r.team_id)}"${nuevaPestana ? ' data-blank="1"' : ''}` : ''}>
       <td class="tg-pos"><span>${i + 1}</span></td>
       <td class="tg-eq${r.ficticio ? ' ficticio' : ''}"><div class="tg-club">${crestHtml(r.logo_url)}
-        ${enlaces ? `<a href="equipo.html?id=${encodeURIComponent(r.team_id)}">${escapeHtml(r.name)}</a>`
+        ${enlaces ? `<a href="equipo.html?id=${encodeURIComponent(r.team_id)}"${nuevaPestana ? ' target="_blank" rel="noopener"' : ''}>${escapeHtml(r.name)}</a>`
           : `<span class="tg-nombre">${escapeHtml(r.name)}</span>`}</div></td>
       <td>${r.pj}</td><td>${r.pg}</td><td>${r.pe}</td><td>${r.pp}</td>
       <td class="tg-opc">${r.gf}</td><td class="tg-opc">${r.gc}</td>
@@ -140,5 +140,7 @@ function tablaGrupoHtml(rows, opciones = {}) {
 // Clasificaciones: se puede pulsar cualquier parte de la fila para abrir la página del club.
 document.addEventListener('click', (e) => {
   const fila = e.target.closest('tr.tg-link[data-href]');
-  if (fila && !e.target.closest('a')) location.href = fila.dataset.href;
+  if (!fila || e.target.closest('a')) return;
+  if (fila.dataset.blank) window.open(fila.dataset.href, '_blank', 'noopener');
+  else location.href = fila.dataset.href;
 });
