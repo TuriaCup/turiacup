@@ -55,6 +55,7 @@ async function load() {
         ${equipo(m.away_team_id, m.away_team_name, m.away_logo)}
       </div>
       <p class="ficha-info">${info.map(escapeHtml).join(' · ')}${m.played ? '' : (m.live ? '' : ' · Por jugar')}</p>
+      ${miniPlanoHtml(m.venue)}
       ${m.live && !m.played ? '<p style="text-align:center"><span class="match-live">● EN JUEGO</span></p>' : ''}
       ${(m.played || m.live) ? `
         <h2>Goleadores</h2>
