@@ -1146,6 +1146,7 @@ function showPartidoForm(partido) {
   const filtroCat = document.getElementById('partidosCategoriaFilter').value;
   const defaultCategory = partido ? partido.category : (filtroCat === 'TODAS' ? CATEGORIAS[0] : filtroCat);
 
+  setTimeout(() => container.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   container.innerHTML = `
     <form class="inline-form" id="partidoForm">
       <div class="form-row">
@@ -1259,7 +1260,7 @@ function addGoalRow(teamId) {
 }
 
 async function toggleResultadoPanel(matchId, btn) {
-  const row = btn.closest('tr');
+  const row = btn.closest('.pc-card');
   const existingPanelRow = row.nextElementSibling;
   if (existingPanelRow && existingPanelRow.classList.contains('resultado-row')) {
     existingPanelRow.remove();
@@ -1268,10 +1269,11 @@ async function toggleResultadoPanel(matchId, btn) {
   document.querySelectorAll('.resultado-row').forEach((r) => r.remove());
 
   const partido = partidosCache.find((p) => String(p.id) === String(matchId));
-  const panelRow = document.createElement('tr');
+  const panelRow = document.createElement('div');
   panelRow.className = 'resultado-row';
-  panelRow.innerHTML = '<td colspan="5"><p>Cargando jugadores…</p></td>';
+  panelRow.innerHTML = '<p>Cargando jugadores…</p>';
   row.after(panelRow);
+  panelRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 
   try {
     const [home, away] = await Promise.all([
@@ -1290,7 +1292,6 @@ async function toggleResultadoPanel(matchId, btn) {
     });
 
     panelRow.innerHTML = `
-      <td colspan="5">
         <div class="resultado-panel" data-match-id="${matchId}">
           <div class="resultado-scores">
             <strong>${escapeHtml(home.equipo.name)}</strong>
@@ -1322,10 +1323,9 @@ async function toggleResultadoPanel(matchId, btn) {
           </div>
           <p class="feedback error" id="resultadoFeedback-${matchId}"></p>
         </div>
-      </td>
     `;
   } catch (err) {
-    panelRow.innerHTML = `<td colspan="5"><p class="feedback error">${escapeHtml(err.message)}</p></td>`;
+    panelRow.innerHTML = `<p class="feedback error">${escapeHtml(err.message)}</p>`;
   }
 }
 

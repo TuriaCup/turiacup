@@ -231,3 +231,8 @@
 .pc-estado { display: flex; gap: 6px; margin: 4px 0 12px; }
 .pc-estado button { flex: 1; padding: 12px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--white); font: inherit; font-weight: 700; cursor: pointer; color: var(--text-muted); }
 .pc-estado button.active { background: var(--blue-900); border-color: var(--blue-900); color: var(--white); }
+.pc-list .resultado-row { grid-column: 1 / -1; }
+.resultado-scores { flex-wrap: wrap; }
+.resultado-scores strong { flex: 1 1 100%; }
+.resultado-scores input { font-size: 1.2rem; }
+.resultado-panel .btn-small { padding: 10px 14px; }
