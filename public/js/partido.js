@@ -64,7 +64,6 @@ async function load() {
           <div><h3>${escapeHtml(m.away_team_name)}</h3>${golesHtml(goles, m.away_team_id)}</div>
         </div>` : ''}
       ${incidenciasHtml(incidencias, m)}
-      <p><a href="equipo.html?id=${m.home_team_id}">← Volver a ${escapeHtml(m.home_team_name)}</a></p>
     `;
     // Mientras el partido está en juego, la ficha se actualiza sola.
     clearTimeout(refresco);
