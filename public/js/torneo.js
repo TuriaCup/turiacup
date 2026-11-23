@@ -22,38 +22,8 @@ function setActiveTab() {
   panelEquipos.hidden = state.tab !== 'equipos';
 }
 
-function matchTeamLink(id, name) {
-  return `<a href="equipo.html?id=${encodeURIComponent(id)}">${escapeHtml(name)}</a>`;
-}
-
 function renderMatchCard(m) {
-  const scoreHtml = m.played
-    ? `<span class="match-score">${m.home_score} - ${m.away_score}</span>`
-    : `<span class="match-meta">${escapeHtml(formatFechaHora(m.scheduled_at))}</span>`;
-
-  const meta = [];
-  if (m.played) meta.push(formatFecha(m.scheduled_at));
-  if (m.venue) meta.push(escapeHtml(m.venue));
-  if (m.round_name) meta.push(escapeHtml(m.round_name));
-  else if (m.group_name) meta.push(`Grupo ${escapeHtml(m.group_name)}`);
-
-  const scorers = (m.goles || [])
-    .map((g) => `${escapeHtml(g.nombre)} ${escapeHtml(g.apellidos)} (${g.count})`)
-    .join(' · ');
-
-  return `
-    <div class="match-card">
-      <div class="match-teams">
-        ${matchTeamLink(m.home_team_id, m.home_team_name)}
-        <span>vs</span>
-        ${matchTeamLink(m.away_team_id, m.away_team_name)}
-      </div>
-      ${scoreHtml}
-      ${meta.length ? `<span class="match-meta">${meta.join(' · ')}</span>` : ''}
-      <a class="match-ficha" href="partido.html?id=${m.id}" aria-label="Ver ficha del partido"></a>
-      ${scorers ? `<div class="match-scorers">⚽ ${scorers}</div>` : ''}
-    </div>
-  `;
+  return matchCardHtml(m, null);
 }
 
 function renderMatchList(container, matches, emptyText) {
@@ -69,7 +39,7 @@ function renderStandingsTable(rows) {
   const body = rows.map((r, i) => `
     <tr>
       <td>${i + 1}</td>
-      <td>${matchTeamLink(r.team_id, r.name)}</td>
+      <td>${`<a href="equipo.html?id=${encodeURIComponent(r.team_id)}">${escapeHtml(r.name)}</a>`}</td>
       <td>${r.pj}</td>
       <td>${r.pg}</td>
       <td>${r.pe}</td>

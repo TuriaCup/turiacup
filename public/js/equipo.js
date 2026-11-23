@@ -2,38 +2,7 @@ const content = document.getElementById('content');
 const teamId = new URLSearchParams(location.search).get('id');
 
 function renderMatchCard(m) {
-  const jugado = m.played;
-  const esLocal = Number(m.home_team_id) === Number(teamId);
-  let resultado = '';
-  if (jugado) {
-    const mio = esLocal ? m.home_score : m.away_score;
-    const rival = esLocal ? m.away_score : m.home_score;
-    const [clase, letra] = mio > rival ? ['gana', 'V'] : mio < rival ? ['pierde', 'D'] : ['empata', 'E'];
-    resultado = `<span class="match-res ${clase}">${letra}</span>`;
-  }
-
-  const meta = [];
-  meta.push(jugado ? formatFecha(m.scheduled_at) : formatFechaHora(m.scheduled_at));
-  if (m.venue) meta.push(m.venue);
-  if (m.round_name) meta.push(m.round_name);
-  else if (m.group_name) meta.push(`Grupo ${m.group_name}`);
-
-  const fila = (id, nombre, goles) => `
-    <div class="mc-row${Number(id) === Number(teamId) ? ' mc-yo' : ''}">
-      <span class="mc-name">${escapeHtml(nombre)}</span>
-      <span class="mc-score">${jugado ? goles : ''}</span>
-    </div>`;
-
-  return `
-    <div class="match-card mc">
-      <div class="mc-teams">
-        ${fila(m.home_team_id, m.home_team_name, m.home_score)}
-        ${fila(m.away_team_id, m.away_team_name, m.away_score)}
-        <div class="mc-meta">${meta.map(escapeHtml).join(' · ')}</div>
-      </div>
-      ${resultado}
-      <a class="match-ficha" href="partido.html?id=${m.id}" aria-label="Ver ficha del partido"></a>
-    </div>`;
+  return matchCardHtml(m, teamId);
 }
 
 function renderMatchList(matches, emptyText) {

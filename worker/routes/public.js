@@ -52,7 +52,8 @@ export async function handleGetEquipo(request, env, idParam) {
   const { results: partidos } = await env.DB.prepare(
     `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
             m.home_score, m.away_score, m.played, m.scheduled_at, m.venue,
-            ht.name AS home_team_name, at.name AS away_team_name
+            ht.name AS home_team_name, at.name AS away_team_name,
+            ht.logo_url AS home_logo, at.logo_url AS away_logo
      FROM matches m
      JOIN teams ht ON ht.id = m.home_team_id
      JOIN teams at ON at.id = m.away_team_id
@@ -175,7 +176,8 @@ export async function handlePartidos(request, env) {
     return jsonResponse({ error: 'Falta el parámetro categoria o no es válido.' }, 400);
   }
 
-  let query = `SELECT m.*, ht.name AS home_team_name, at.name AS away_team_name
+  let query = `SELECT m.*, ht.name AS home_team_name, at.name AS away_team_name,
+    ht.logo_url AS home_logo, at.logo_url AS away_logo
     FROM matches m
     JOIN teams ht ON ht.id = m.home_team_id
     JOIN teams at ON at.id = m.away_team_id

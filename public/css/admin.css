@@ -209,3 +209,25 @@
 .standings-table td:nth-child(2), .standings-table th:nth-child(2) { text-align: left; }
 .standings-table td.ficticio { color: #999; font-style: italic; }
 .standings-table td.pts { font-weight: 800; color: var(--blue-700); }
+
+/* Lista de partidos en tarjetas (sin deslizar de lado) */
+#partidosBuscar { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font: inherit; min-width: 0; flex: 1; }
+.pc-count { color: var(--text-muted); margin: 8px 0; }
+.pc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.pc-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.pc-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-weight: 700; }
+.pc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-score { font-weight: 800; font-size: 1.1rem; }
+.pc-meta { display: flex; flex-direction: column; gap: 2px; color: var(--text-muted); font-size: .85rem; margin: 8px 0 12px; }
+.pc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.pc-actions .btn-small { margin-left: 0 !important; flex: 1; padding: 10px 6px; }
+.crest { width: 28px; height: 28px; object-fit: contain; flex: none; }
+.crest-vacio { display: inline-block; border-radius: 50%; background: var(--border); }
+.admin-toolbar > div { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 640px) { .admin-toolbar > div { width: 100%; } .admin-toolbar > div .btn-small { flex: 1; } }
+#partidosBuscar { flex: 1 1 100%; order: 5; }
+#newPartidoBtn { order: 6; }
+.filtro-campo { flex: 1 1 100%; font-weight: 700; border-color: var(--blue-500) !important; }
+.pc-estado { display: flex; gap: 6px; margin: 4px 0 12px; }
+.pc-estado button { flex: 1; padding: 12px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--white); font: inherit; font-weight: 700; cursor: pointer; color: var(--text-muted); }
+.pc-estado button.active { background: var(--blue-900); border-color: var(--blue-900); color: var(--white); }

@@ -7,24 +7,7 @@ const equipoId = params.get('equipo');
 const NOMBRE_FASE = { oro: '🥇 Oro', plata: '🥈 Plata', bronce: '🥉 Bronce' };
 
 function renderMatchCard(m) {
-  const jugado = m.played;
-  const meta = [formatFechaHora(m.scheduled_at)];
-  if (m.venue) meta.push(m.venue);
-  const mio = equipoId && [m.home_team_id, m.away_team_id].some((i) => Number(i) === Number(equipoId));
-  const fila = (id, nombre, goles) => `
-    <div class="mc-row${equipoId && Number(id) === Number(equipoId) ? ' mc-yo' : ''}">
-      <span class="mc-name">${escapeHtml(nombre)}</span>
-      <span class="mc-score">${jugado ? goles : ''}</span>
-    </div>`;
-  return `
-    <div class="match-card mc${mio ? ' mc-yo-card' : ''}">
-      <div class="mc-teams">
-        ${fila(m.home_team_id, m.home_team_name, m.home_score)}
-        ${fila(m.away_team_id, m.away_team_name, m.away_score)}
-        <div class="mc-meta">${meta.map(escapeHtml).join(' · ')}</div>
-      </div>
-      <a class="match-ficha" href="partido.html?id=${m.id}" aria-label="Ver ficha del partido"></a>
-    </div>`;
+  return matchCardHtml(m, equipoId, true);
 }
 
 function renderRondas(partidos) {

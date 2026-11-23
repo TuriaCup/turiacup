@@ -1027,14 +1027,22 @@ function renderPartidosTab() {
     <div class="admin-toolbar">
       <h2>Partidos</h2>
       <div>
+        <select id="partidosCampoFilter" class="filtro-campo"><option value="">Todos los campos</option></select>
         <select id="partidosCategoriaFilter">
+          <option value="TODAS">Todas las categorías</option>
           ${CATEGORIAS.map((c) => `<option value="${c}">${c}</option>`).join('')}
         </select>
         <select id="partidosFaseFilter">
           ${FASES.map((f) => `<option value="${f.value}">${f.label}</option>`).join('')}
         </select>
+        <input type="search" id="partidosBuscar" placeholder="Buscar equipo, campo o grupo…">
         <button class="btn-small primary" id="newPartidoBtn">+ Nuevo partido</button>
       </div>
+    </div>
+    <div class="pc-estado" id="partidosEstado">
+      <button type="button" class="active" data-estado="pendientes">Pendientes</button>
+      <button type="button" data-estado="terminados">Terminados</button>
+      <button type="button" data-estado="todos">Todos</button>
     </div>
     <div id="partidoFormContainer"></div>
     <div id="partidosListContainer"></div>
@@ -1042,9 +1050,71 @@ function renderPartidosTab() {
 
   document.getElementById('partidosCategoriaFilter').addEventListener('change', loadPartidosList);
   document.getElementById('partidosFaseFilter').addEventListener('change', loadPartidosList);
+  document.querySelectorAll('#partidosEstado button').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('#partidosEstado button').forEach((x) => x.classList.toggle('active', x === b));
+    pintarPartidos();
+  }));
+  document.getElementById('partidosCampoFilter').addEventListener('change', pintarPartidos);
+  document.getElementById('partidosBuscar').addEventListener('input', pintarPartidos);
   document.getElementById('newPartidoBtn').addEventListener('click', () => showPartidoForm(null));
 
   loadPartidosList();
+}
+
+function rellenarCampos() {
+  const sel = document.getElementById('partidosCampoFilter');
+  const actual = sel.value;
+  const campos = [...new Set(partidosCache.map((p) => p.venue).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+  const hayVacios = partidosCache.some((p) => !p.venue);
+  sel.innerHTML = '<option value="">Todos los campos</option>'
+    + campos.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')
+    + (hayVacios ? '<option value="__sin__">Sin instalación</option>' : '');
+  if (actual && [...sel.options].some((o) => o.value === actual)) sel.value = actual;
+}
+
+function pintarPartidos() {
+  const container = document.getElementById('partidosListContainer');
+  const q = (document.getElementById('partidosBuscar')?.value || '').trim().toLowerCase();
+  const campo = document.getElementById('partidosCampoFilter')?.value || '';
+  const lista = partidosCache.filter((p) => (!campo || (campo === '__sin__' ? !p.venue : p.venue === campo)))
+    .filter((p) => !q
+    || p.home_team_name.toLowerCase().includes(q) || p.away_team_name.toLowerCase().includes(q)
+    || (p.venue || '').toLowerCase().includes(q) || (p.group_name || '').toLowerCase() === q);
+  const estado = document.querySelector('#partidosEstado .active')?.dataset.estado || 'pendientes';
+  const fecha = (p) => p.scheduled_at || '';
+  const pendientes = lista.filter((p) => !p.played).sort((a, b) => (fecha(a) || '9999').localeCompare(fecha(b) || '9999'));
+  const terminados = lista.filter((p) => p.played).sort((a, b) => fecha(b).localeCompare(fecha(a)));
+  const ordenada = estado === 'pendientes' ? pendientes : estado === 'terminados' ? terminados : [...pendientes, ...terminados];
+  if (!ordenada.length) {
+    container.innerHTML = '<p>No hay partidos para este filtro.</p>';
+    return;
+  }
+  const fila = (nombre, logo, goles, jugado) => `
+    <div class="pc-row">
+      ${crestHtml(logo)}<span class="pc-name">${escapeHtml(nombre)}</span>
+      <span class="pc-score">${jugado ? goles : ''}</span>
+    </div>`;
+  container.innerHTML = `
+    <p class="pc-count">${ordenada.length} partido${ordenada.length === 1 ? '' : 's'}${estado === 'todos' ? ` (${pendientes.length} pendientes · ${terminados.length} terminados)` : ''}</p>
+    <div class="pc-list">
+      ${ordenada.map((p) => `
+        <div class="pc-card" data-id="${p.id}">
+          <div class="pc-teams">
+            ${fila(p.home_team_name, p.home_logo, p.home_score, p.played)}
+            ${fila(p.away_team_name, p.away_logo, p.away_score, p.played)}
+          </div>
+          <div class="pc-meta">
+            <span>🕒 ${escapeHtml(formatFechaHora(p.scheduled_at))}</span>
+            <span>📍 ${p.venue ? escapeHtml(p.venue) : '<em>Sin instalación</em>'}</span>
+            <span><strong>${escapeHtml(p.category)}</strong> · ${p.round_name ? escapeHtml(p.round_name) : (p.group_name ? `Grupo ${escapeHtml(p.group_name)}` : '')}${p.played ? '' : ' · Por jugar'}</span>
+          </div>
+          <div class="pc-actions">
+            <button class="btn-small primary" data-action="resultado-partido" data-id="${p.id}">Resultado</button>
+            <button class="btn-small" data-action="edit-partido" data-id="${p.id}">Editar</button>
+            <button class="btn-small danger" data-action="delete-partido" data-id="${p.id}">Eliminar</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
 }
 
 async function loadPartidosList() {
@@ -1053,32 +1123,18 @@ async function loadPartidosList() {
   const container = document.getElementById('partidosListContainer');
   container.innerHTML = '<p>Cargando…</p>';
   try {
-    const { partidos } = await fetchJson(`/api/partidos?categoria=${encodeURIComponent(categoria)}&fase=${encodeURIComponent(fase)}`);
+    const cats = categoria === 'TODAS' ? CATEGORIAS : [categoria];
+    const respuestas = await Promise.all(cats.map((c) =>
+      fetchJson(`/api/partidos?categoria=${encodeURIComponent(c)}&fase=${encodeURIComponent(fase)}`)));
+    const partidos = respuestas.flatMap((r) => r.partidos)
+      .sort((a, b) => (a.scheduled_at || '9999').localeCompare(b.scheduled_at || '9999') || (a.venue || '').localeCompare(b.venue || ''));
     partidosCache = partidos;
+    rellenarCampos();
     if (!partidos.length) {
       container.innerHTML = '<p>No hay partidos para este filtro.</p>';
       return;
     }
-    container.innerHTML = `
-      <table class="admin-table">
-        <thead><tr><th>Fecha</th><th>Partido</th><th>Resultado</th><th>Grupo/Ronda</th><th></th></tr></thead>
-        <tbody>
-          ${partidos.map((p) => `
-            <tr data-id="${p.id}">
-              <td>${escapeHtml(formatFechaHora(p.scheduled_at))}</td>
-              <td>${escapeHtml(p.home_team_name)} vs ${escapeHtml(p.away_team_name)}</td>
-              <td>${p.played ? `${p.home_score} - ${p.away_score}` : '—'}</td>
-              <td>${p.round_name ? escapeHtml(p.round_name) : (p.group_name ? `Grupo ${escapeHtml(p.group_name)}` : '')}</td>
-              <td class="actions">
-                <button class="btn-small primary" data-action="resultado-partido" data-id="${p.id}">Resultado</button>
-                <button class="btn-small" data-action="edit-partido" data-id="${p.id}">Editar</button>
-                <button class="btn-small danger" data-action="delete-partido" data-id="${p.id}">Eliminar</button>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
+    pintarPartidos();
   } catch (err) {
     container.innerHTML = `<p class="feedback error">${escapeHtml(err.message)}</p>`;
   }
@@ -1087,7 +1143,8 @@ async function loadPartidosList() {
 function showPartidoForm(partido) {
   const container = document.getElementById('partidoFormContainer');
   const isEdit = Boolean(partido);
-  const defaultCategory = partido ? partido.category : document.getElementById('partidosCategoriaFilter').value;
+  const filtroCat = document.getElementById('partidosCategoriaFilter').value;
+  const defaultCategory = partido ? partido.category : (filtroCat === 'TODAS' ? CATEGORIAS[0] : filtroCat);
 
   container.innerHTML = `
     <form class="inline-form" id="partidoForm">

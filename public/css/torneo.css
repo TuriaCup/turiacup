@@ -282,3 +282,10 @@
 }
 .bracket::after { content: ''; flex: 0 0 16%; }
 @media (min-width: 900px) { .bracket::after { display: none; } }
+
+/* Escudos */
+.crest { width: 28px; height: 28px; object-fit: contain; flex: none; }
+.crest-vacio { display: inline-block; border-radius: 50%; background: var(--border); }
+.mc-row { align-items: center; justify-content: flex-start; gap: 10px; padding: 5px 0; }
+.mc-name { flex: 1; min-width: 0; }
+.mc-goles { color: var(--text-muted); font-size: .8rem; margin-top: 6px; }
