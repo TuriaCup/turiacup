@@ -35,33 +35,7 @@ function renderMatchList(container, matches, emptyText) {
 }
 
 function renderStandingsTable(rows) {
-  if (!rows.length) return '<p class="empty-state">Sin equipos en este grupo.</p>';
-  const body = rows.map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${`<a href="equipo.html?id=${encodeURIComponent(r.team_id)}">${escapeHtml(r.name)}</a>`}</td>
-      <td>${r.pj}</td>
-      <td>${r.pg}</td>
-      <td>${r.pe}</td>
-      <td>${r.pp}</td>
-      <td>${r.gf}</td>
-      <td>${r.gc}</td>
-      <td>${r.dg}</td>
-      <td class="pts">${r.pts}</td>
-    </tr>
-  `).join('');
-
-  return `
-    <table class="standings-table">
-      <thead>
-        <tr>
-          <th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th>
-          <th>GF</th><th>GC</th><th>DG</th><th>Pts</th>
-        </tr>
-      </thead>
-      <tbody>${body}</tbody>
-    </table>
-  `;
+  return tablaGrupoHtml(rows, { enlaces: true });
 }
 
 async function loadClasificacionTab() {
@@ -83,8 +57,8 @@ async function loadClasificacionTab() {
           `/api/clasificacion?categoria=${encodeURIComponent(state.categoria)}&grupo=${encodeURIComponent(grupo)}`
         );
         return `
-          <div class="group-block">
-            <h3>Grupo ${escapeHtml(grupo)}</h3>
+          <div class="grupo-bloque">
+            ${cabeceraGrupoHtml(grupo, clasificacion.length)}
             ${renderStandingsTable(clasificacion)}
           </div>
         `;

@@ -129,7 +129,7 @@ export async function handleClasificacion(request, env) {
     return jsonResponse({ error: 'Falta el parámetro categoria o no es válido.' }, 400);
   }
 
-  let teamsQuery = 'SELECT id, name, group_name FROM teams WHERE category = ?';
+  let teamsQuery = 'SELECT id, name, group_name, logo_url FROM teams WHERE category = ?';
   const teamBinds = [categoria];
   if (grupo) {
     teamsQuery += ' AND group_name = ?';
@@ -149,7 +149,7 @@ export async function handleClasificacion(request, env) {
   const table = new Map();
   for (const t of teams) {
     table.set(t.id, {
-      team_id: t.id, name: t.name, group_name: t.group_name,
+      team_id: t.id, name: t.name, group_name: t.group_name, logo_url: t.logo_url,
       pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dg: 0, pts: 0,
     });
   }

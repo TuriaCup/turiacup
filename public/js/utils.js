@@ -101,3 +101,38 @@ function matchCardHtml(m, miId, destacar) {
       <a class="match-ficha" href="partido.html?id=${m.id}" aria-label="Ver ficha del partido"></a>
     </div>`;
 }
+
+// Cabecera de grupo: letra grande + «n equipos»
+function cabeceraGrupoHtml(nombre, numEquipos) {
+  const letra = nombre ? String(nombre).slice(0, 2).toUpperCase() : '–';
+  return `<div class="grupo-cab"><span class="grupo-letra">${escapeHtml(letra)}</span>
+    <h3>${nombre ? `Grupo ${escapeHtml(nombre)}` : 'Sin grupo'}</h3>
+    ${numEquipos != null ? `<small>${numEquipos} equipos</small>` : ''}</div>`;
+}
+
+// Tabla de clasificación de un grupo.
+// rows: { team_id, name, logo_url, pj, pg, pe, pp, gf, gc, dg, pts, ficticio? }
+// opciones: enlaces (nombre enlaza al club), miId (resalta ese equipo)
+function tablaGrupoHtml(rows, opciones = {}) {
+  if (!rows.length) return '<p class="empty-state">Sin equipos en este grupo.</p>';
+  const { enlaces, miId } = opciones;
+  const dg = (n) => `${n > 0 ? '+' : ''}${n}`;
+  const filas = rows.map((r, i) => `
+    <tr class="${miId != null && Number(r.team_id) === Number(miId) ? 'tg-yo' : ''}">
+      <td class="tg-pos"><span>${i + 1}</span></td>
+      <td class="tg-eq${r.ficticio ? ' ficticio' : ''}"><div class="tg-club">${crestHtml(r.logo_url)}
+        ${enlaces ? `<a href="equipo.html?id=${encodeURIComponent(r.team_id)}">${escapeHtml(r.name)}</a>`
+          : `<span class="tg-nombre">${escapeHtml(r.name)}</span>`}</div></td>
+      <td>${r.pj}</td><td>${r.pg}</td><td>${r.pe}</td><td>${r.pp}</td>
+      <td class="tg-opc">${r.gf}</td><td class="tg-opc">${r.gc}</td>
+      <td class="tg-dg ${r.dg > 0 ? 'pos' : r.dg < 0 ? 'neg' : ''}">${dg(r.dg)}</td>
+      <td class="tg-pts"><b>${r.pts}</b></td>
+    </tr>`).join('');
+  return `
+    <div class="tg-wrap"><table class="tg">
+      <thead><tr><th class="tg-pos">#</th><th class="tg-eq">Equipo</th><th>PJ</th><th>G</th><th>E</th><th>P</th>
+        <th class="tg-opc">GF</th><th class="tg-opc">GC</th><th>DG</th><th class="tg-pts">Pts</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table></div>
+    <p class="tg-leyenda">PJ partidos jugados · G ganados · E empatados · P perdidos · DG diferencia de goles · Pts puntos</p>`;
+}

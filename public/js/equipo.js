@@ -12,17 +12,7 @@ function renderMatchList(matches, emptyText) {
 
 function renderClasificacion(rows) {
   if (!rows.length) return '<p class="empty-state">Clasificación aún no disponible.</p>';
-  const body = rows.map((r, i) => `
-    <tr class="${Number(r.team_id) === Number(teamId) ? 'st-yo' : ''}">
-      <td>${i + 1}</td><td>${escapeHtml(r.name)}</td>
-      <td>${r.pj}</td><td>${r.pg}</td><td>${r.pe}</td><td>${r.pp}</td>
-      <td>${r.gf}</td><td>${r.gc}</td><td>${r.dg}</td><td class="pts">${r.pts}</td>
-    </tr>`).join('');
-  return `
-    <table class="standings-table">
-      <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead>
-      <tbody>${body}</tbody>
-    </table>`;
+  return tablaGrupoHtml(rows, { miId: teamId });
 }
 
 const NOMBRE_FASE = { oro: '🥇 Oro', plata: '🥈 Plata', bronce: '🥉 Bronce' };
@@ -56,7 +46,7 @@ async function loadClasificacionEquipo(equipo, todos) {
     if (equipo.group_name) {
       const { clasificacion } = await fetchJson(
         `/api/clasificacion?categoria=${encodeURIComponent(equipo.category)}&grupo=${encodeURIComponent(equipo.group_name)}`);
-      html += `<h2>Grupo ${escapeHtml(equipo.group_name)}</h2>${renderClasificacion(clasificacion)}`;
+      html += `${cabeceraGrupoHtml(equipo.group_name, clasificacion.length)}${renderClasificacion(clasificacion)}`;
     } else {
       html += '<p class="empty-state">Este equipo aún no tiene grupo asignado.</p>';
     }

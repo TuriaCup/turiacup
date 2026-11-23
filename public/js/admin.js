@@ -166,21 +166,17 @@ function pintarGrupos() {
   const grupos = [...new Set(equipos.map((t) => t.group_name).filter(Boolean))].sort();
   const sin = equipos.filter((t) => !t.group_name);
   const ficticio = (n) => /^U\d+[A-Z]\d+$/.test(n);
-  const tabla = (lista) => `
-    <table class="standings-table">
-      <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead>
-      <tbody>${lista.map((t, i) => `
-        <tr><td>${i + 1}</td><td${ficticio(t.name) ? ' class="ficticio"' : ''}>${escapeHtml(t.name)}</td>
-        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td class="pts">0</td></tr>`).join('')}
-      </tbody>
-    </table>`;
+  const tabla = (lista) => tablaGrupoHtml(lista.map((t) => ({
+    team_id: t.id, name: t.name, logo_url: t.logo_url, ficticio: ficticio(t.name),
+    pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, dg: 0, pts: 0,
+  })));
   const porNombre = (a, b) => a.name.localeCompare(b.name, 'es');
   const bloques = grupos.map((g) => {
     const lista = equipos.filter((t) => t.group_name === g).sort(porNombre);
-    return `<div class="group-block"><h3>Grupo ${escapeHtml(g)} <small>(${lista.length} equipos)</small></h3>${tabla(lista)}</div>`;
+    return `<div class="grupo-bloque">${cabeceraGrupoHtml(g, lista.length)}${tabla(lista)}</div>`;
   });
   if (sin.length) {
-    bloques.push(`<div class="group-block"><h3>Sin grupo <small>(${sin.length} equipos)</small></h3>${tabla(sin.sort(porNombre))}</div>`);
+    bloques.push(`<div class="grupo-bloque">${cabeceraGrupoHtml('', sin.length)}${tabla(sin.sort(porNombre))}</div>`);
   }
   document.getElementById('gruposLista').innerHTML = bloques.join('') || '<p class="empty-state">Todavía no hay grupos asignados.</p>';
 }
