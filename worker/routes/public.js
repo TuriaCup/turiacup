@@ -1,5 +1,6 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { estadoPublicacion } from '../lib/ajustes.js';
+import { ensureDirecto, listarEventos } from '../lib/directo.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 
@@ -49,14 +50,17 @@ export async function handleGetEquipo(request, env, idParam) {
     staff = []; // la tabla puede no existir todavía
   }
 
+  await ensureDirecto(env);
   const { results: partidos } = await env.DB.prepare(
     `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
             m.home_score, m.away_score, m.played, m.scheduled_at, m.venue,
             ht.name AS home_team_name, at.name AS away_team_name,
-            ht.logo_url AS home_logo, at.logo_url AS away_logo
+            ht.logo_url AS home_logo, at.logo_url AS away_logo,
+            ml.match_id IS NOT NULL AS live
      FROM matches m
      JOIN teams ht ON ht.id = m.home_team_id
      JOIN teams at ON at.id = m.away_team_id
+     LEFT JOIN match_live ml ON ml.match_id = m.id
      WHERE m.home_team_id = ? OR m.away_team_id = ?
      ORDER BY m.scheduled_at IS NULL, m.scheduled_at`
   ).bind(id, id).all();
@@ -168,6 +172,7 @@ export async function handlePartidos(request, env) {
   const { publicado, visible } = await estadoPublicacion(request, env);
   if (!visible) return jsonResponse({ publicado, visible, partidos: [] });
 
+  await ensureDirecto(env);
   const url = new URL(request.url);
   const categoria = clean(url.searchParams.get('categoria') || '').toUpperCase();
   const fase = clean(url.searchParams.get('fase') || '');
@@ -177,10 +182,12 @@ export async function handlePartidos(request, env) {
   }
 
   let query = `SELECT m.*, ht.name AS home_team_name, at.name AS away_team_name,
-    ht.logo_url AS home_logo, at.logo_url AS away_logo
+    ht.logo_url AS home_logo, at.logo_url AS away_logo,
+    ml.match_id IS NOT NULL AS live
     FROM matches m
     JOIN teams ht ON ht.id = m.home_team_id
     JOIN teams at ON at.id = m.away_team_id
+    LEFT JOIN match_live ml ON ml.match_id = m.id
     WHERE m.category = ?`;
   const binds = [categoria];
   if (fase) {
@@ -220,24 +227,40 @@ export async function handleGetPartido(request, env, idParam) {
   const id = parseId(idParam);
   if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
 
+  await ensureDirecto(env);
   const partido = await env.DB.prepare(
     `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
             m.home_score, m.away_score, m.played, m.scheduled_at, m.venue,
             ht.name AS home_team_name, ht.logo_url AS home_logo,
-            at.name AS away_team_name, at.logo_url AS away_logo
+            at.name AS away_team_name, at.logo_url AS away_logo,
+            ml.match_id IS NOT NULL AS live
      FROM matches m
      JOIN teams ht ON ht.id = m.home_team_id
      JOIN teams at ON at.id = m.away_team_id
+     LEFT JOIN match_live ml ON ml.match_id = m.id
      WHERE m.id = ?`
   ).bind(id).first();
   if (!partido) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
 
-  const { results: goles } = await env.DB.prepare(
+  const eventos = await listarEventos(env, id);
+  // En juego, los goles salen de las incidencias; al terminar, del resultado oficial.
+  const golesEnVivo = new Map();
+  for (const e of eventos.filter((x) => x.type === 'gol')) {
+    const k = e.player_id;
+    const g = golesEnVivo.get(k) || { team_id: e.team_id, count: 0, player_id: e.player_id, nombre: e.nombre, apellidos: e.apellidos, dorsal: e.dorsal };
+    g.count += 1;
+    golesEnVivo.set(k, g);
+  }
+
+  const { results: golesOficiales } = await env.DB.prepare(
     `SELECT g.team_id, g.count, p.id AS player_id, p.nombre, p.apellidos, p.dorsal
      FROM goals g JOIN players p ON p.id = g.player_id
      WHERE g.match_id = ?
      ORDER BY p.dorsal IS NULL, p.dorsal`
   ).bind(id).all();
 
-  return jsonResponse({ publicado, visible, partido, goles });
+  const goles = partido.live ? [...golesEnVivo.values()] : golesOficiales;
+  const incidencias = eventos.filter((e) => e.type !== 'gol');
+
+  return jsonResponse({ publicado, visible, partido, goles, incidencias });
 }

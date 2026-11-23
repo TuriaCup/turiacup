@@ -8,13 +8,26 @@ function golesHtml(goles, equipoId) {
     <li>${g.dorsal != null ? `${g.dorsal}. ` : ''}<a href="jugador.html?id=${g.player_id}">${escapeHtml(g.nombre)} ${escapeHtml(g.apellidos)}</a> ⚽ ${g.count > 1 ? `×${g.count}` : ''}</li>`).join('')}</ul>`;
 }
 
+const ICONO = { propia: '⚽↩', amarilla: '🟨', roja: '🟥' };
+const TEXTO = { propia: 'Gol en propia puerta', amarilla: 'Tarjeta amarilla', roja: 'Tarjeta roja' };
+let refresco = null;
+
+function incidenciasHtml(incidencias, m) {
+  if (!incidencias || !incidencias.length) return '';
+  return `
+    <h2>Incidencias</h2>
+    <ul class="ficha-incidencias">${incidencias.map((e) => `
+      <li>${ICONO[e.type]} ${TEXTO[e.type]} · ${e.dorsal != null ? `${e.dorsal}. ` : ''}<a href="jugador.html?id=${e.player_id}">${escapeHtml(e.nombre)} ${escapeHtml(e.apellidos)}</a>
+        <small>(${escapeHtml(e.team_id === m.home_team_id ? m.home_team_name : m.away_team_name)})</small></li>`).join('')}</ul>`;
+}
+
 async function load() {
   if (!matchId) {
     content.innerHTML = '<p class="empty-state">Falta el identificador del partido.</p>';
     return;
   }
   try {
-    const { publicado, visible, partido: m, goles } =
+    const { publicado, visible, partido: m, goles, incidencias } =
       await fetchJson(`/api/partidos/${encodeURIComponent(matchId)}`);
     if (!visible) {
       content.innerHTML = noPublicadoHtml();
@@ -38,18 +51,23 @@ async function load() {
       ${publicado ? '' : avisoInternoHtml()}
       <div class="ficha-marcador">
         ${equipo(m.home_team_id, m.home_team_name, m.home_logo)}
-        <div class="ficha-score">${m.played ? `${m.home_score} - ${m.away_score}` : 'vs'}</div>
+        <div class="ficha-score">${(m.played || m.live) ? `${m.home_score ?? 0} - ${m.away_score ?? 0}` : 'vs'}</div>
         ${equipo(m.away_team_id, m.away_team_name, m.away_logo)}
       </div>
-      <p class="ficha-info">${info.map(escapeHtml).join(' · ')}${m.played ? '' : ' · Por jugar'}</p>
-      ${m.played ? `
+      <p class="ficha-info">${info.map(escapeHtml).join(' · ')}${m.played ? '' : (m.live ? '' : ' · Por jugar')}</p>
+      ${m.live && !m.played ? '<p style="text-align:center"><span class="match-live">● EN JUEGO</span></p>' : ''}
+      ${(m.played || m.live) ? `
         <h2>Goleadores</h2>
         <div class="ficha-goles">
           <div><h3>${escapeHtml(m.home_team_name)}</h3>${golesHtml(goles, m.home_team_id)}</div>
           <div><h3>${escapeHtml(m.away_team_name)}</h3>${golesHtml(goles, m.away_team_id)}</div>
         </div>` : ''}
+      ${incidenciasHtml(incidencias, m)}
       <p><a href="equipo.html?id=${m.home_team_id}">← Volver a ${escapeHtml(m.home_team_name)}</a></p>
     `;
+    // Mientras el partido está en juego, la ficha se actualiza sola.
+    clearTimeout(refresco);
+    if (m.live && !m.played) refresco = setTimeout(load, 20000);
   } catch (err) {
     content.innerHTML = `<p class="empty-state">${escapeHtml(err.message)}</p>`;
   }

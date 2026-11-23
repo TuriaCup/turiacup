@@ -289,3 +289,10 @@
 .mc-row { align-items: center; justify-content: flex-start; gap: 10px; padding: 5px 0; }
 .mc-name { flex: 1; min-width: 0; }
 .mc-goles { color: var(--text-muted); font-size: .8rem; margin-top: 6px; }
+
+/* En juego */
+.match-live { display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 999px; background: #d62828; color: #fff; font-size: .72rem; font-weight: 800; letter-spacing: .04em; animation: pulso 1.6s ease-in-out infinite; }
+.mc-live { border-color: #d62828; }
+@keyframes pulso { 50% { opacity: .55; } }
+.ficha-incidencias { list-style: none; padding: 0; margin: 0; }
+.ficha-incidencias li { padding: 8px 0; border-bottom: 1px solid var(--border); }

@@ -1,6 +1,7 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { parseRosterExcel } from '../lib/xlsx.js';
 import { isTorneoPublico, setTorneoPublico, subidasAbiertas, setSubidasAbiertas } from '../lib/ajustes.js';
+import { ensureDirecto } from '../lib/directo.js';
 import { ensureEntregasTables, ensureIntolerancias, construirSlug, getPlantillaDeEquipo } from '../lib/entregas.js';
 
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
@@ -347,7 +348,9 @@ export async function handleUploadPlantilla(request, env, teamIdParam) {
   }
 
   await ensureIntolerancias(env);
+  await ensureDirecto(env);
   const statements = [
+    env.DB.prepare('DELETE FROM match_events WHERE player_id IN (SELECT id FROM players WHERE team_id = ?)').bind(teamId),
     env.DB.prepare('DELETE FROM goals WHERE player_id IN (SELECT id FROM players WHERE team_id = ?)').bind(teamId),
     env.DB.prepare('DELETE FROM players WHERE team_id = ?').bind(teamId),
   ];
@@ -407,7 +410,9 @@ export async function handleDeleteJugador(request, env, idParam) {
   const id = parseId(idParam);
   if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
 
+  await ensureDirecto(env);
   await env.DB.batch([
+    env.DB.prepare('DELETE FROM match_events WHERE player_id = ?').bind(id),
     env.DB.prepare('DELETE FROM goals WHERE player_id = ?').bind(id),
     env.DB.prepare('DELETE FROM players WHERE id = ?').bind(id),
   ]);
@@ -493,7 +498,10 @@ export async function handleDeletePartido(request, env, idParam) {
   const id = parseId(idParam);
   if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
 
+  await ensureDirecto(env);
   await env.DB.batch([
+    env.DB.prepare('DELETE FROM match_events WHERE match_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM match_live WHERE match_id = ?').bind(id),
     env.DB.prepare('DELETE FROM goals WHERE match_id = ?').bind(id),
     env.DB.prepare('DELETE FROM matches WHERE id = ?').bind(id),
   ]);
@@ -550,10 +558,13 @@ export async function handleResultadoPartido(request, env, idParam) {
     }
   }
 
+  await ensureDirecto(env);
   const statements = [
     env.DB.prepare('UPDATE matches SET home_score = ?, away_score = ?, played = 1 WHERE id = ?')
       .bind(home_score, away_score, id),
     env.DB.prepare('DELETE FROM goals WHERE match_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM match_live WHERE match_id = ?').bind(id),
+    env.DB.prepare("DELETE FROM match_events WHERE match_id = ? AND type IN ('gol', 'propia')").bind(id),
   ];
   for (const g of goalRows) {
     statements.push(

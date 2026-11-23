@@ -1040,6 +1040,7 @@ function renderPartidosTab() {
       </div>
     </div>
     <div class="pc-estado" id="partidosEstado">
+      <button type="button" data-estado="enjuego">En juego</button>
       <button type="button" class="active" data-estado="pendientes">Pendientes</button>
       <button type="button" data-estado="terminados">Terminados</button>
       <button type="button" data-estado="todos">Todos</button>
@@ -1082,9 +1083,18 @@ function pintarPartidos() {
     || (p.venue || '').toLowerCase().includes(q) || (p.group_name || '').toLowerCase() === q);
   const estado = document.querySelector('#partidosEstado .active')?.dataset.estado || 'pendientes';
   const fecha = (p) => p.scheduled_at || '';
-  const pendientes = lista.filter((p) => !p.played).sort((a, b) => (fecha(a) || '9999').localeCompare(fecha(b) || '9999'));
+  const enJuego = lista.filter((p) => p.live && !p.played).sort((a, b) => (fecha(a) || '9999').localeCompare(fecha(b) || '9999'));
+  const pendientes = lista.filter((p) => !p.played && !p.live).sort((a, b) => (fecha(a) || '9999').localeCompare(fecha(b) || '9999'));
   const terminados = lista.filter((p) => p.played).sort((a, b) => fecha(b).localeCompare(fecha(a)));
-  const ordenada = estado === 'pendientes' ? pendientes : estado === 'terminados' ? terminados : [...pendientes, ...terminados];
+  const ordenada = estado === 'enjuego' ? enJuego : estado === 'pendientes' ? pendientes
+    : estado === 'terminados' ? terminados : [...enJuego, ...pendientes, ...terminados];
+  // Contadores en los botones de estado
+  const nombres = { enjuego: ['En juego', enJuego.length], pendientes: ['Pendientes', pendientes.length],
+    terminados: ['Terminados', terminados.length], todos: ['Todos', lista.length] };
+  document.querySelectorAll('#partidosEstado button').forEach((b) => {
+    const [txt, n] = nombres[b.dataset.estado];
+    b.innerHTML = `${txt} <small>${n}</small>`;
+  });
   if (!ordenada.length) {
     container.innerHTML = '<p>No hay partidos para este filtro.</p>';
     return;
@@ -1094,22 +1104,24 @@ function pintarPartidos() {
       ${crestHtml(logo)}<span class="pc-name">${escapeHtml(nombre)}</span>
       <span class="pc-score">${jugado ? goles : ''}</span>
     </div>`;
+  const marcadorVisible = (p) => p.played || p.live;
   container.innerHTML = `
-    <p class="pc-count">${ordenada.length} partido${ordenada.length === 1 ? '' : 's'}${estado === 'todos' ? ` (${pendientes.length} pendientes · ${terminados.length} terminados)` : ''}</p>
+    <p class="pc-count">${ordenada.length} partido${ordenada.length === 1 ? '' : 's'}${estado === 'todos' ? ` (${enJuego.length} en juego · ${pendientes.length} pendientes · ${terminados.length} terminados)` : ''}</p>
     <div class="pc-list">
       ${ordenada.map((p) => `
         <div class="pc-card" data-id="${p.id}">
           <div class="pc-teams">
-            ${fila(p.home_team_name, p.home_logo, p.home_score, p.played)}
-            ${fila(p.away_team_name, p.away_logo, p.away_score, p.played)}
+            ${fila(p.home_team_name, p.home_logo, p.home_score, marcadorVisible(p))}
+            ${fila(p.away_team_name, p.away_logo, p.away_score, marcadorVisible(p))}
           </div>
           <div class="pc-meta">
             <span>🕒 ${escapeHtml(formatFechaHora(p.scheduled_at))}</span>
             <span>📍 ${p.venue ? escapeHtml(p.venue) : '<em>Sin instalación</em>'}</span>
-            <span><strong>${escapeHtml(p.category)}</strong> · ${p.round_name ? escapeHtml(p.round_name) : (p.group_name ? `Grupo ${escapeHtml(p.group_name)}` : '')}${p.played ? '' : ' · Por jugar'}</span>
+            <span><strong>${escapeHtml(p.category)}</strong> · ${p.round_name ? escapeHtml(p.round_name) : (p.group_name ? `Grupo ${escapeHtml(p.group_name)}` : '')}${p.played ? '' : (p.live ? ' · <span class="en-juego">● EN JUEGO</span>' : ' · Por jugar')}</span>
           </div>
           <div class="pc-actions">
-            <button class="btn-small primary" data-action="resultado-partido" data-id="${p.id}">Resultado</button>
+            ${p.played ? '' : `<button class="btn-small directo" data-action="directo-partido" data-id="${p.id}">${p.live ? '● Seguir en directo' : '▶ Directo'}</button>`}
+            <button class="btn-small ${p.played ? 'primary' : ''}" data-action="resultado-partido" data-id="${p.id}">Resultado</button>
             <button class="btn-small" data-action="edit-partido" data-id="${p.id}">Editar</button>
             <button class="btn-small danger" data-action="delete-partido" data-id="${p.id}">Eliminar</button>
           </div>
@@ -1259,10 +1271,182 @@ function addGoalRow(teamId) {
   container.insertAdjacentHTML('beforeend', renderGoalRow(jugadores, jugadores[0].id, 1));
 }
 
+
+// --- Partido en directo ---
+
+let directoActual = null; // { partido, eventos, home, away } del partido abierto
+
+const ICONOS_EVENTO = { gol: '⚽', propia: '⚽↩', amarilla: '🟨', roja: '🟥' };
+const NOMBRES_EVENTO = { gol: 'Gol', propia: 'Gol en propia puerta', amarilla: 'Tarjeta amarilla', roja: 'Tarjeta roja' };
+
+async function toggleDirecto(matchId, btn) {
+  const card = btn.closest('.pc-card');
+  const existente = card.nextElementSibling;
+  if (existente && existente.classList.contains('directo-row')) {
+    existente.remove();
+    directoActual = null;
+    return;
+  }
+  document.querySelectorAll('.resultado-row').forEach((r) => r.remove());
+  const panel = document.createElement('div');
+  panel.className = 'resultado-row directo-row';
+  panel.innerHTML = '<p>Cargando partido…</p>';
+  card.after(panel);
+  panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  try {
+    directoActual = await fetchJson(`/api/admin/partidos/${matchId}/directo`);
+    pintarDirecto(panel);
+  } catch (err) {
+    panel.innerHTML = `<p class="feedback error">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function resumenJugador(playerId) {
+  const ev = directoActual.eventos.filter((e) => e.player_id === playerId);
+  const n = (t) => ev.filter((e) => e.type === t).length;
+  return [
+    n('gol') ? '⚽'.repeat(n('gol')) : '',
+    n('propia') ? 'P.P.' : '',
+    n('amarilla') ? '🟨'.repeat(n('amarilla')) : '',
+    n('roja') ? '🟥' : '',
+  ].filter(Boolean).join(' ');
+}
+
+function columnaPlantilla(nombreEquipo, jugadores) {
+  if (!jugadores.length) return `<div class="dj-col"><h4>${escapeHtml(nombreEquipo)}</h4><p class="empty-state">Sin plantilla subida.</p></div>`;
+  return `
+    <div class="dj-col">
+      <h4>${escapeHtml(nombreEquipo)}</h4>
+      ${jugadores.map((j) => `
+        <button type="button" class="dj-jug" data-action="jugador-directo" data-player="${j.id}">
+          <b>${j.dorsal ?? '–'}</b>
+          <span class="dj-nombre">${escapeHtml(j.nombre.charAt(0))}. ${escapeHtml(j.apellidos)}</span>
+          <span class="dj-badges">${resumenJugador(j.id)}</span>
+        </button>`).join('')}
+    </div>`;
+}
+
+function pintarDirecto(panel) {
+  panel = panel || document.querySelector('.directo-row');
+  if (!panel || !directoActual) return;
+  const { partido: p, eventos, home, away } = directoActual;
+  const nombreJugador = (e) => `${e.dorsal != null ? `${e.dorsal}. ` : ''}${e.nombre.charAt(0)}. ${e.apellidos}`;
+  const equipoDe = (e) => (e.team_id === p.home_team_id ? p.home_team_name : p.away_team_name);
+
+  let cuerpo;
+  if (p.played) {
+    cuerpo = '<p class="dj-aviso">Este partido ya está terminado. Si hay que corregir algo, usa el botón «Resultado».</p>';
+  } else if (!p.live) {
+    cuerpo = `
+      <p class="dj-aviso">El partido aún no ha empezado.</p>
+      <button type="button" class="btn-iniciar" data-action="iniciar-partido" data-id="${p.id}">▶ Iniciar partido</button>`;
+  } else {
+    cuerpo = `
+      <div class="dj-plantillas">
+        ${columnaPlantilla(p.home_team_name, home)}
+        ${columnaPlantilla(p.away_team_name, away)}
+      </div>
+      <h4 class="dj-titulo">Incidencias</h4>
+      ${eventos.length ? `<ul class="dj-eventos">${[...eventos].reverse().map((e) => `
+        <li><span>${ICONOS_EVENTO[e.type]} ${escapeHtml(NOMBRES_EVENTO[e.type])} · ${escapeHtml(nombreJugador(e))} <small>(${escapeHtml(equipoDe(e))})</small></span>
+          <button type="button" class="btn-small" data-action="deshacer-evento" data-id="${p.id}" data-event="${e.id}">Deshacer</button></li>`).join('')}</ul>`
+        : '<p class="empty-state">Todavía no hay incidencias. Toca un jugador para anotar un gol o una tarjeta.</p>'}
+      <button type="button" class="btn-finalizar" data-action="finalizar-partido" data-id="${p.id}">■ Finalizar partido</button>`;
+  }
+
+  panel.innerHTML = `
+    <div class="directo-panel">
+      <div class="dj-marcador">
+        <span class="dj-eq">${escapeHtml(p.home_team_name)}</span>
+        <span class="dj-goles">${p.home_score ?? 0} - ${p.away_score ?? 0}</span>
+        <span class="dj-eq">${escapeHtml(p.away_team_name)}</span>
+        ${p.live ? '<span class="en-juego dj-badge">● EN JUEGO</span>' : ''}
+      </div>
+      ${cuerpo}
+      <p class="feedback error" id="directoFeedback"></p>
+    </div>`;
+}
+
+function abrirHojaJugador(playerId) {
+  const { partido: p, home, away } = directoActual;
+  const id = Number(playerId);
+  const jug = [...home, ...away].find((j) => j.id === id);
+  if (!jug) return;
+  cerrarHojaJugador();
+  const equipo = home.some((j) => j.id === id) ? p.home_team_name : p.away_team_name;
+  const hoja = document.createElement('div');
+  hoja.className = 'hoja-jugador';
+  hoja.innerHTML = `
+    <button type="button" class="hoja-fondo" data-action="cerrar-hoja" aria-label="Cerrar"></button>
+    <div class="hoja-caja">
+      <h3>${jug.dorsal != null ? `${jug.dorsal}. ` : ''}${escapeHtml(jug.nombre)} ${escapeHtml(jug.apellidos)}</h3>
+      <p>${escapeHtml(equipo)}</p>
+      <button type="button" class="hoja-btn gol" data-action="evento-directo" data-id="${p.id}" data-player="${id}" data-type="gol">⚽ Gol</button>
+      <button type="button" class="hoja-btn" data-action="evento-directo" data-id="${p.id}" data-player="${id}" data-type="amarilla">🟨 Tarjeta amarilla</button>
+      <button type="button" class="hoja-btn" data-action="evento-directo" data-id="${p.id}" data-player="${id}" data-type="roja">🟥 Tarjeta roja</button>
+      <button type="button" class="hoja-btn" data-action="evento-directo" data-id="${p.id}" data-player="${id}" data-type="propia">⚽↩ Gol en propia puerta</button>
+      <button type="button" class="hoja-btn cancelar" data-action="cerrar-hoja">Cancelar</button>
+    </div>`;
+  panels.partidos.appendChild(hoja);
+}
+
+function cerrarHojaJugador() {
+  document.querySelectorAll('.hoja-jugador').forEach((h) => h.remove());
+}
+
+async function accionDirecto(matchId, accion, datos = {}) {
+  cerrarHojaJugador();
+  const panel = document.querySelector('.directo-row');
+  const feedback = () => document.getElementById('directoFeedback');
+  const opciones = {
+    iniciar: [`/api/admin/partidos/${matchId}/iniciar`, { method: 'POST' }],
+    finalizar: [`/api/admin/partidos/${matchId}/finalizar`, { method: 'POST' }],
+    evento: [`/api/admin/partidos/${matchId}/eventos`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: datos.player_id, type: datos.type }),
+    }],
+    deshacer: [`/api/admin/partidos/${matchId}/eventos/${datos.eventId}`, { method: 'DELETE' }],
+  }[accion];
+  try {
+    directoActual = await fetchJson(opciones[0], opciones[1]);
+  } catch (err) {
+    if (feedback()) feedback().textContent = err.message;
+    return;
+  }
+  // Se actualiza la lista en memoria con el estado nuevo del partido.
+  const idx = partidosCache.findIndex((x) => String(x.id) === String(matchId));
+  if (idx >= 0) partidosCache[idx] = { ...partidosCache[idx], ...directoActual.partido, goles: partidosCache[idx].goles };
+
+  if (accion === 'iniciar' || accion === 'finalizar') {
+    // Al cambiar de estado el partido cambia de pestaña: pasamos a ella y reabrimos su panel.
+    const destino = accion === 'iniciar' ? 'enjuego' : 'terminados';
+    document.querySelectorAll('#partidosEstado button').forEach((b) => b.classList.toggle('active', b.dataset.estado === destino));
+    pintarPartidos();
+    const btn = document.querySelector(`.pc-card[data-id="${matchId}"] [data-action="resultado-partido"]`);
+    if (btn) {
+      const card = btn.closest('.pc-card');
+      const nuevo = document.createElement('div');
+      nuevo.className = 'resultado-row directo-row';
+      card.after(nuevo);
+      pintarDirecto(nuevo);
+      card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  } else {
+    pintarDirecto(panel);
+    // Marcador de la tarjeta, sin repintar la lista (así no se cierra el panel).
+    const card = document.querySelector(`.pc-card[data-id="${matchId}"]`);
+    if (card) {
+      const marcadores = card.querySelectorAll('.pc-score');
+      if (marcadores[0]) marcadores[0].textContent = directoActual.partido.home_score ?? 0;
+      if (marcadores[1]) marcadores[1].textContent = directoActual.partido.away_score ?? 0;
+    }
+  }
+}
+
 async function toggleResultadoPanel(matchId, btn) {
   const row = btn.closest('.pc-card');
   const existingPanelRow = row.nextElementSibling;
-  if (existingPanelRow && existingPanelRow.classList.contains('resultado-row')) {
+  if (existingPanelRow && existingPanelRow.classList.contains('resultado-row') && !existingPanelRow.classList.contains('directo-row')) {
     existingPanelRow.remove();
     return;
   }
@@ -1361,7 +1545,24 @@ panels.partidos.addEventListener('click', async (e) => {
   if (!btn) return;
   const { action, id } = btn.dataset;
 
-  if (action === 'edit-partido') {
+  if (action === 'directo-partido') {
+    toggleDirecto(id, btn);
+  } else if (action === 'iniciar-partido') {
+    await accionDirecto(id, 'iniciar');
+  } else if (action === 'jugador-directo') {
+    abrirHojaJugador(btn.dataset.player);
+  } else if (action === 'evento-directo') {
+    await accionDirecto(id, 'evento', { player_id: Number(btn.dataset.player), type: btn.dataset.type });
+  } else if (action === 'cerrar-hoja') {
+    cerrarHojaJugador();
+  } else if (action === 'deshacer-evento') {
+    await accionDirecto(id, 'deshacer', { eventId: btn.dataset.event });
+  } else if (action === 'finalizar-partido') {
+    const d = directoActual;
+    if (confirm(`¿Finalizar el partido con el resultado ${d.partido.home_score} - ${d.partido.away_score}? Se guardará como resultado oficial.`)) {
+      await accionDirecto(id, 'finalizar');
+    }
+  } else if (action === 'edit-partido') {
     showPartidoForm(partidosCache.find((p) => String(p.id) === id));
   } else if (action === 'delete-partido') {
     if (!confirm('¿Eliminar este partido?')) return;

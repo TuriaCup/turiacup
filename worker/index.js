@@ -10,6 +10,13 @@ import {
   handleGetPartido,
 } from './routes/public.js';
 import {
+  handleGetDirecto,
+  handleIniciarPartido,
+  handleAnadirEvento,
+  handleBorrarEvento,
+  handleFinalizarPartido,
+} from './routes/directo.js';
+import {
   handleGetPlantillaPublica,
   handleGuardarPlantillaPublica,
 } from './routes/plantilla.js';
@@ -143,6 +150,21 @@ async function routeAdmin(request, env, pathname, method) {
 
   params = matchPath('/api/admin/partidos/:id/resultado', pathname);
   if (params && method === 'PUT') return handleResultadoPartido(request, env, params.id);
+
+  params = matchPath('/api/admin/partidos/:id/directo', pathname);
+  if (params && method === 'GET') return handleGetDirecto(request, env, params.id);
+
+  params = matchPath('/api/admin/partidos/:id/iniciar', pathname);
+  if (params && method === 'POST') return handleIniciarPartido(request, env, params.id);
+
+  params = matchPath('/api/admin/partidos/:id/eventos', pathname);
+  if (params && method === 'POST') return handleAnadirEvento(request, env, params.id);
+
+  params = matchPath('/api/admin/partidos/:id/eventos/:eventId', pathname);
+  if (params && method === 'DELETE') return handleBorrarEvento(request, env, params.id, params.eventId);
+
+  params = matchPath('/api/admin/partidos/:id/finalizar', pathname);
+  if (params && method === 'POST') return handleFinalizarPartido(request, env, params.id);
 
   return jsonResponse({ error: 'No encontrado.' }, 404);
 }

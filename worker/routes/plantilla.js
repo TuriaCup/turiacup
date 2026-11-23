@@ -1,6 +1,7 @@
 // Página pública (con enlace privado) para que cada club rellene su propia plantilla.
 import { jsonResponse, clean } from '../lib/http.js';
 import { subidasAbiertas } from '../lib/ajustes.js';
+import { ensureDirecto } from '../lib/directo.js';
 import {
   getEquipoPorSlug,
   getPlantillaDeEquipo,
@@ -126,8 +127,10 @@ export async function handleGuardarPlantillaPublica(request, env, slugParam) {
   }
 
   await ensureEntregasTables(env);
+  await ensureDirecto(env);
 
   const statements = [
+    env.DB.prepare('DELETE FROM match_events WHERE player_id IN (SELECT id FROM players WHERE team_id = ?)').bind(equipo.id),
     env.DB.prepare('DELETE FROM goals WHERE player_id IN (SELECT id FROM players WHERE team_id = ?)').bind(equipo.id),
     env.DB.prepare('DELETE FROM players WHERE team_id = ?').bind(equipo.id),
     env.DB.prepare('DELETE FROM staff WHERE team_id = ?').bind(equipo.id),

@@ -58,6 +58,8 @@ function crestHtml(url) {
 // Tarjeta de partido (toda ella lleva a la ficha). miId marca al equipo propio y añade V/E/D.
 function matchCardHtml(m, miId, destacar) {
   const jugado = Boolean(m.played);
+  const live = Boolean(m.live) && !jugado;
+  const hayMarcador = jugado || live;
   const esMio = (id) => miId != null && Number(id) === Number(miId);
   const participa = esMio(m.home_team_id) || esMio(m.away_team_id);
 
@@ -73,23 +75,25 @@ function matchCardHtml(m, miId, destacar) {
   const cuando = formatFechaHora(m.scheduled_at);
   const donde = m.venue ? `📍 ${m.venue}` : '';
   const etapa = m.round_name || (m.group_name ? `Grupo ${m.group_name}` : '');
+  const enJuego = live ? '<div class="match-live">● EN JUEGO</div>' : '';
   const meta = [[cuando, etapa].filter(Boolean).join(' · '), donde].filter(Boolean);
 
   const fila = (id, nombre, logo, goles) => `
     <div class="mc-row${esMio(id) ? ' mc-yo' : ''}">
       ${crestHtml(logo)}
       <span class="mc-name">${escapeHtml(nombre)}</span>
-      <span class="mc-score">${jugado ? goles : ''}</span>
+      <span class="mc-score">${hayMarcador ? (goles ?? 0) : ''}</span>
     </div>`;
 
   const scorers = (m.goles || [])
     .map((g) => `${escapeHtml(g.nombre)} ${escapeHtml(g.apellidos)}${g.count > 1 ? ` (${g.count})` : ''}`).join(' · ');
 
   return `
-    <div class="match-card mc${destacar && participa ? ' mc-yo-card' : ''}">
+    <div class="match-card mc${destacar && participa ? ' mc-yo-card' : ''}${live ? ' mc-live' : ''}">
       <div class="mc-teams">
         ${fila(m.home_team_id, m.home_team_name, m.home_logo, m.home_score)}
         ${fila(m.away_team_id, m.away_team_name, m.away_logo, m.away_score)}
+        ${enJuego}
         <div class="mc-meta">${meta.map((t) => `<div>${escapeHtml(t)}</div>`).join('')}</div>
         ${scorers ? `<div class="mc-goles">⚽ ${scorers}</div>` : ''}
       </div>
