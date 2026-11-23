@@ -118,7 +118,7 @@ function tablaGrupoHtml(rows, opciones = {}) {
   const { enlaces, miId } = opciones;
   const dg = (n) => `${n > 0 ? '+' : ''}${n}`;
   const filas = rows.map((r, i) => `
-    <tr class="${miId != null && Number(r.team_id) === Number(miId) ? 'tg-yo' : ''}">
+    <tr class="${miId != null && Number(r.team_id) === Number(miId) ? 'tg-yo' : ''}${enlaces ? ' tg-link' : ''}"${enlaces ? ` data-href="equipo.html?id=${encodeURIComponent(r.team_id)}"` : ''}>
       <td class="tg-pos"><span>${i + 1}</span></td>
       <td class="tg-eq${r.ficticio ? ' ficticio' : ''}"><div class="tg-club">${crestHtml(r.logo_url)}
         ${enlaces ? `<a href="equipo.html?id=${encodeURIComponent(r.team_id)}">${escapeHtml(r.name)}</a>`
@@ -136,3 +136,9 @@ function tablaGrupoHtml(rows, opciones = {}) {
     </table></div>
     <p class="tg-leyenda">PJ partidos jugados · G ganados · E empatados · P perdidos · DG diferencia de goles · Pts puntos</p>`;
 }
+
+// Clasificaciones: se puede pulsar cualquier parte de la fila para abrir la página del club.
+document.addEventListener('click', (e) => {
+  const fila = e.target.closest('tr.tg-link[data-href]');
+  if (fila && !e.target.closest('a')) location.href = fila.dataset.href;
+});

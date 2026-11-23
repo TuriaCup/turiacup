@@ -53,3 +53,6 @@
   .tg-club a, .tg-club span.tg-nombre { font-size: .86rem; }
   .tg td.tg-pts b { min-width: 30px; padding: 3px 6px; }
 }
+.tg tr.tg-link { cursor: pointer; }
+.tg tr.tg-link:hover td, .tg tr.tg-link:active td { background: #fff8ef; }
+.tg tr.tg-yo.tg-link:hover td { background: #ffe9c9; }

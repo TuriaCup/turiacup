@@ -12,7 +12,7 @@ function renderMatchList(matches, emptyText) {
 
 function renderClasificacion(rows) {
   if (!rows.length) return '<p class="empty-state">Clasificación aún no disponible.</p>';
-  return tablaGrupoHtml(rows, { miId: teamId });
+  return tablaGrupoHtml(rows, { miId: teamId, enlaces: true });
 }
 
 const NOMBRE_FASE = { oro: '🥇 Oro', plata: '🥈 Plata', bronce: '🥉 Bronce' };
