@@ -41,7 +41,7 @@
       ],
     },
     camarena: {
-      nombre: 'Resort Camarena',
+      nombre: 'Resort Mas Camarena',
       campos: (a) => [
         campo(1, a === 1, 30, 30, 30, 30, [-40, 60, 45], 48, 59),
         campo(2, a === 2, 60, 30, 30, 30, [-40, 60, 45], 72, 39),
