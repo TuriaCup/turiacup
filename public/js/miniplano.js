@@ -16,10 +16,14 @@
   }
 
   const flecha = (d) => `<path d="${d}" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
-  const cafeteria = (cx, cy) => `<circle cx="${cx}" cy="${cy}" r="7" fill="#9333ea"/>`;
+  const cafeteria = (cx, cy) => `<circle cx="${cx}" cy="${cy}" r="8" fill="#9333ea"/>`
+    + `<path d="M${cx - 3.5} ${cy - 1.5} h6 v3.5 a2.5 2.5 0 0 1 -2.5 2.5 h-1 a2.5 2.5 0 0 1 -2.5 -2.5 z" fill="#fff"/>`
+    + `<path d="M${cx + 2.5} ${cy - 0.5} h1 a1.6 1.6 0 0 1 0 3.2 h-1" fill="none" stroke="#fff" stroke-width="1.1"/>`
+    + `<path d="M${cx - 1.5} ${cy - 3} v-1.2 M${cx + 0.8} ${cy - 3} v-1.2" stroke="#fff" stroke-width="0.9" stroke-linecap="round"/>`;
   const banos = (x, y) => `<rect x="${x}" y="${y}" width="11" height="11" rx="3" fill="#0d9488"/>`;
   const vestuarios = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="#db2777" fill-opacity="0.45"/>`;
-  const parking = (x, y) => `<rect x="${x}" y="${y}" width="12" height="12" rx="3" fill="#2563eb"/>`;
+  const grada = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="#16a34a" fill-opacity="0.6"/>`;
+  const parking = (x, y) => `<rect x="${x}" y="${y}" width="13" height="13" rx="3" fill="#2563eb"/><text x="${x + 6.5}" y="${y + 10.3}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">P</text>`;
 
   const PLANOS = {
     cracks: {
@@ -45,9 +49,9 @@
         campo(4, a === 4, 130, 60, 30, 30, [40, 130, 75], 142, 89),
       ],
       extra: [
-        vestuarios(152, 98, 34, 12),
+        `<g transform="rotate(40 130 75)">${grada(100, 92, 49, 5)}${vestuarios(164, 58, 7, 34)}</g>`,
         cafeteria(168, 62),
-        parking(14, 14), parking(14, 76), parking(76, 90),
+        parking(14, 14), parking(14, 76),
         flecha('M58 118 L72 104 M62 104 L73 103 L72 114'),
       ],
     },
@@ -59,6 +63,7 @@
       ],
       extra: [
         vestuarios(72, 30, 80, 14),
+        grada(108, 112, 62, 5),
         cafeteria(64, 36), banos(46, 31),
         flecha('M12 12 L24 40 M14 30 L25 42 L28 30'),
       ],
