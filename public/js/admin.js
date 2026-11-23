@@ -1320,6 +1320,11 @@ function addGoalRow(teamId) {
 
 let directoActual = null; // { partido, eventos, home, away } del partido abierto
 
+// Los nombres vienen en mayúsculas: se muestran como «Alejandro Soriano Aldana».
+function nombreBonito(txt) {
+  return String(txt ?? '').toLowerCase().replace(/(^|[\s\-'’.])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+}
+
 const ICONOS_EVENTO = { gol: '⚽', propia: '⚽↩', amarilla: '🟨', roja: '🟥' };
 const NOMBRES_EVENTO = { gol: 'Gol', propia: 'Gol en propia puerta', amarilla: 'Tarjeta amarilla', roja: 'Tarjeta roja' };
 
@@ -1366,7 +1371,7 @@ function columnaPlantilla(nombreEquipo, jugadores) {
       ${jugadores.map((j) => `
         <button type="button" class="dj-jug" data-action="jugador-directo" data-player="${j.id}">
           <b>${j.dorsal ?? '–'}</b>
-          <span class="dj-nombre">${escapeHtml(j.nombre.charAt(0))}. ${escapeHtml(j.apellidos)}</span>
+          <span class="dj-nombre">${escapeHtml(nombreBonito(`${j.nombre} ${j.apellidos}`))}</span>
           <span class="dj-badges">${resumenJugador(j.id)}</span>
         </button>`).join('')}
     </div>`;
@@ -1376,7 +1381,7 @@ function pintarDirecto(panel) {
   panel = panel || document.querySelector('.directo-row');
   if (!panel || !directoActual) return;
   const { partido: p, eventos, home, away } = directoActual;
-  const nombreJugador = (e) => `${e.dorsal != null ? `${e.dorsal}. ` : ''}${e.nombre.charAt(0)}. ${e.apellidos}`;
+  const nombreJugador = (e) => `${e.dorsal != null ? `${e.dorsal}. ` : ''}${nombreBonito(`${e.nombre} ${e.apellidos}`)}`;
   const equipoDe = (e) => (e.team_id === p.home_team_id ? p.home_team_name : p.away_team_name);
 
   const reiniciar = `<button type="button" class="btn-reiniciar" data-action="reiniciar-partido" data-id="${p.id}">↺ Volver a pendiente (borrar todo)</button>`;
@@ -1432,7 +1437,7 @@ function abrirHojaJugador(playerId) {
   hoja.innerHTML = `
     <button type="button" class="hoja-fondo" data-action="cerrar-hoja" aria-label="Cerrar"></button>
     <div class="hoja-caja">
-      <h3>${jug.dorsal != null ? `${jug.dorsal}. ` : ''}${escapeHtml(jug.nombre)} ${escapeHtml(jug.apellidos)}</h3>
+      <h3>${jug.dorsal != null ? `${jug.dorsal}. ` : ''}${escapeHtml(nombreBonito(`${jug.nombre} ${jug.apellidos}`))}</h3>
       <p>${escapeHtml(equipo)}</p>
       <button type="button" class="hoja-btn gol" data-action="evento-directo" data-id="${p.id}" data-player="${id}" data-type="gol">⚽ Gol</button>
       <button type="button" class="hoja-btn" data-action="evento-directo" data-id="${p.id}" data-player="${id}" data-type="amarilla">🟨 Tarjeta amarilla</button>

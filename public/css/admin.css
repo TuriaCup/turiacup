@@ -278,3 +278,6 @@
 .btn-reiniciar { display: block; width: 100%; margin-top: 12px; padding: 14px; border: 1px solid #f2b8b8; border-radius: var(--radius); background: #fff; color: #b01e1e; font: inherit; font-weight: 700; cursor: pointer; }
 .dj-edicion { background: #fff8ef; border: 1px solid var(--accent, #f0a030); border-radius: 8px; padding: 8px 10px; }
 .dj-descuadre { background: #fff3cd; border-radius: 8px; padding: 8px 10px; font-size: .85rem; margin: 0 0 12px; }
+/* Nombre completo del jugador, sin cortar */
+.dj-nombre { display: block; -webkit-line-clamp: unset; overflow: visible; text-overflow: clip; white-space: normal; word-break: break-word; font-size: .82rem; line-height: 1.2; }
+.dj-jug { min-height: 52px; }
