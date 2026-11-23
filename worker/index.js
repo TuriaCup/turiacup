@@ -7,6 +7,7 @@ import {
   handleGetJugador,
   handleClasificacion,
   handlePartidos,
+  handleGetPartido,
 } from './routes/public.js';
 import {
   handleGetPlantillaPublica,
@@ -161,6 +162,9 @@ export default {
 
       let params = matchPath('/api/equipos/:id', pathname);
       if (params && method === 'GET') return handleGetEquipo(request, env, params.id);
+
+      params = matchPath('/api/partidos/:id', pathname);
+      if (params && method === 'GET') return handleGetPartido(request, env, params.id);
 
       params = matchPath('/api/jugadores/:id', pathname);
       if (params && method === 'GET') return handleGetJugador(request, env, params.id);

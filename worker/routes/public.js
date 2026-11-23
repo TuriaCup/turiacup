@@ -208,3 +208,33 @@ export async function handlePartidos(request, env) {
 
   return jsonResponse({ publicado, visible, partidos: withGoles });
 }
+
+
+export async function handleGetPartido(request, env, idParam) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible });
+
+  const id = parseId(idParam);
+  if (!id) return jsonResponse({ error: 'Id inválido.' }, 400);
+
+  const partido = await env.DB.prepare(
+    `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
+            m.home_score, m.away_score, m.played, m.scheduled_at, m.venue,
+            ht.name AS home_team_name, ht.logo_url AS home_logo,
+            at.name AS away_team_name, at.logo_url AS away_logo
+     FROM matches m
+     JOIN teams ht ON ht.id = m.home_team_id
+     JOIN teams at ON at.id = m.away_team_id
+     WHERE m.id = ?`
+  ).bind(id).first();
+  if (!partido) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
+
+  const { results: goles } = await env.DB.prepare(
+    `SELECT g.team_id, g.count, p.id AS player_id, p.nombre, p.apellidos, p.dorsal
+     FROM goals g JOIN players p ON p.id = g.player_id
+     WHERE g.match_id = ?
+     ORDER BY p.dorsal IS NULL, p.dorsal`
+  ).bind(id).all();
+
+  return jsonResponse({ publicado, visible, partido, goles });
+}

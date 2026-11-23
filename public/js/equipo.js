@@ -1,33 +1,107 @@
 const content = document.getElementById('content');
 const teamId = new URLSearchParams(location.search).get('id');
 
-function renderMatchCard(m, teamId) {
-  const scoreHtml = m.played
-    ? `<span class="match-score">${m.home_score} - ${m.away_score}</span>`
-    : `<span class="match-meta">${escapeHtml(formatFechaHora(m.scheduled_at))}</span>`;
+function renderMatchCard(m) {
+  const jugado = m.played;
+  const esLocal = Number(m.home_team_id) === Number(teamId);
+  let resultado = '';
+  if (jugado) {
+    const mio = esLocal ? m.home_score : m.away_score;
+    const rival = esLocal ? m.away_score : m.home_score;
+    const [clase, letra] = mio > rival ? ['gana', 'V'] : mio < rival ? ['pierde', 'D'] : ['empata', 'E'];
+    resultado = `<span class="match-res ${clase}">${letra}</span>`;
+  }
 
   const meta = [];
-  if (m.played) meta.push(formatFecha(m.scheduled_at));
-  if (m.venue) meta.push(escapeHtml(m.venue));
-  if (m.round_name) meta.push(escapeHtml(m.round_name));
-  else if (m.group_name) meta.push(`Grupo ${escapeHtml(m.group_name)}`);
+  meta.push(jugado ? formatFecha(m.scheduled_at) : formatFechaHora(m.scheduled_at));
+  if (m.venue) meta.push(m.venue);
+  if (m.round_name) meta.push(m.round_name);
+  else if (m.group_name) meta.push(`Grupo ${m.group_name}`);
+
+  const fila = (id, nombre, goles) => `
+    <div class="mc-row${Number(id) === Number(teamId) ? ' mc-yo' : ''}">
+      <span class="mc-name">${escapeHtml(nombre)}</span>
+      <span class="mc-score">${jugado ? goles : ''}</span>
+    </div>`;
 
   return `
-    <div class="match-card">
-      <div class="match-teams">
-        <a href="equipo.html?id=${m.home_team_id}">${escapeHtml(m.home_team_name)}</a>
-        <span>vs</span>
-        <a href="equipo.html?id=${m.away_team_id}">${escapeHtml(m.away_team_name)}</a>
+    <div class="match-card mc">
+      <div class="mc-teams">
+        ${fila(m.home_team_id, m.home_team_name, m.home_score)}
+        ${fila(m.away_team_id, m.away_team_name, m.away_score)}
+        <div class="mc-meta">${meta.map(escapeHtml).join(' · ')}</div>
       </div>
-      ${scoreHtml}
-      ${meta.length ? `<span class="match-meta">${meta.join(' · ')}</span>` : ''}
-    </div>
-  `;
+      ${resultado}
+      <a class="match-ficha" href="partido.html?id=${m.id}" aria-label="Ver ficha del partido"></a>
+    </div>`;
 }
 
 function renderMatchList(matches, emptyText) {
   if (!matches.length) return `<p class="empty-state">${escapeHtml(emptyText)}</p>`;
   return `<div class="match-list">${matches.map((m) => renderMatchCard(m)).join('')}</div>`;
+}
+
+function renderClasificacion(rows) {
+  if (!rows.length) return '<p class="empty-state">Clasificación aún no disponible.</p>';
+  const body = rows.map((r, i) => `
+    <tr class="${Number(r.team_id) === Number(teamId) ? 'st-yo' : ''}">
+      <td>${i + 1}</td><td>${escapeHtml(r.name)}</td>
+      <td>${r.pj}</td><td>${r.pg}</td><td>${r.pe}</td><td>${r.pp}</td>
+      <td>${r.gf}</td><td>${r.gc}</td><td>${r.dg}</td><td class="pts">${r.pts}</td>
+    </tr>`).join('');
+  return `
+    <table class="standings-table">
+      <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+}
+
+const NOMBRE_FASE = { oro: '🥇 Oro', plata: '🥈 Plata', bronce: '🥉 Bronce' };
+
+function renderRondas(partidos) {
+  const rondas = [];
+  for (const m of partidos) {
+    const nombre = m.round_name || 'Cruces';
+    let r = rondas.find((x) => x.nombre === nombre);
+    if (!r) rondas.push(r = { nombre, partidos: [] });
+    r.partidos.push(m);
+  }
+  return rondas.map((r) => `
+    <h3 class="ronda-titulo">${escapeHtml(r.nombre)}</h3>
+    <div class="match-list">${r.partidos.map(renderMatchCard).join('')}</div>`).join('');
+}
+
+function renderCuadro(fase, partidos) {
+  const mios = partidos.filter((m) => Number(m.home_team_id) === Number(teamId) || Number(m.away_team_id) === Number(teamId));
+  const hayMas = partidos.length > mios.length;
+  return `
+    <h2 class="subsection-title">Fase final · ${NOMBRE_FASE[fase] || escapeHtml(fase)}</h2>
+    ${renderRondas(mios)}
+    ${hayMas ? `<a class="btn-cuadro" href="cuadro.html?categoria=${encodeURIComponent(partidos[0].category)}&fase=${encodeURIComponent(fase)}&equipo=${encodeURIComponent(teamId)}">Ver todo el cuadro</a>` : ''}`;
+}
+
+async function loadClasificacionEquipo(equipo, todos) {
+  const panel = document.getElementById('panelClasificacion');
+  try {
+    let html = '';
+    if (equipo.group_name) {
+      const { clasificacion } = await fetchJson(
+        `/api/clasificacion?categoria=${encodeURIComponent(equipo.category)}&grupo=${encodeURIComponent(equipo.group_name)}`);
+      html += `<h2>Grupo ${escapeHtml(equipo.group_name)}</h2>${renderClasificacion(clasificacion)}`;
+    } else {
+      html += '<p class="empty-state">Este equipo aún no tiene grupo asignado.</p>';
+    }
+    // Fase final: solo si el equipo ya tiene algún partido de oro/plata/bronce
+    const fasePropia = todos.find((m) => ['oro', 'plata', 'bronce'].includes(m.phase));
+    if (fasePropia) {
+      const { partidos } = await fetchJson(
+        `/api/partidos?categoria=${encodeURIComponent(equipo.category)}&fase=${fasePropia.phase}`);
+      html += renderCuadro(fasePropia.phase, partidos);
+    }
+    panel.innerHTML = html;
+  } catch (err) {
+    panel.innerHTML = `<p class="empty-state">${escapeHtml(err.message)}</p>`;
+  }
 }
 
 async function load() {
@@ -69,31 +143,50 @@ async function load() {
         </div>
       </div>
 
-      <h2>Plantilla</h2>
-      ${jugadores.length ? `
-        <table class="roster-table">
-          <thead><tr><th>Dorsal</th><th>Jugador</th><th>Año de nacimiento</th></tr></thead>
-          <tbody>${rosterRows}</tbody>
-        </table>
-      ` : '<p class="empty-state">Plantilla aún no publicada.</p>'}
+      <div class="tabs" id="equipoTabs">
+        <button class="tab-btn active" data-tab="plantilla">Plantilla</button>
+        <button class="tab-btn" data-tab="partidos">Partidos</button>
+        <button class="tab-btn" data-tab="clasificacion">Clasificación</button>
+      </div>
 
-      ${(staff || []).length ? `
-        <h2 class="subsection-title">Cuerpo técnico</h2>
-        <table class="roster-table">
-          <thead><tr><th>Nombre</th><th>Cargo</th></tr></thead>
-          <tbody>${staff.map((t) => `
-            <tr>
-              <td>${escapeHtml(t.nombre)} ${escapeHtml(t.apellidos)}</td>
-              <td>${t.cargo ? escapeHtml(t.cargo) : ''}</td>
-            </tr>`).join('')}</tbody>
-        </table>` : ''}
+      <div class="tab-panel" id="panelPlantilla">
+        ${jugadores.length ? `
+          <table class="roster-table">
+            <thead><tr><th>Dorsal</th><th>Jugador</th><th>Año</th></tr></thead>
+            <tbody>${rosterRows}</tbody>
+          </table>
+        ` : '<p class="empty-state">Plantilla aún no publicada.</p>'}
 
-      <h2 class="subsection-title">Próximos partidos</h2>
-      ${renderMatchList(proximos, 'No hay próximos partidos programados.')}
+        ${(staff || []).length ? `
+          <h2 class="subsection-title">Cuerpo técnico</h2>
+          <table class="roster-table">
+            <thead><tr><th>Nombre</th><th>Cargo</th></tr></thead>
+            <tbody>${staff.map((t) => `
+              <tr>
+                <td>${escapeHtml(t.nombre)} ${escapeHtml(t.apellidos)}</td>
+                <td>${t.cargo ? escapeHtml(t.cargo) : ''}</td>
+              </tr>`).join('')}</tbody>
+          </table>` : ''}
+      </div>
 
-      <h2 class="subsection-title">Partidos jugados</h2>
-      ${renderMatchList(jugados, 'Todavía no ha jugado ningún partido.')}
+      <div class="tab-panel" id="panelClasificacion" hidden><p class="empty-state">Cargando…</p></div>
+
+      <div class="tab-panel" id="panelPartidos" hidden>
+        <h2>Próximos partidos</h2>
+        ${renderMatchList(proximos, 'No hay próximos partidos programados.')}
+        <h2 class="subsection-title">Partidos jugados</h2>
+        ${renderMatchList(jugados, 'Todavía no ha jugado ningún partido.')}
+      </div>
     `;
+
+    const tabs = content.querySelectorAll('#equipoTabs .tab-btn');
+    tabs.forEach((btn) => btn.addEventListener('click', () => {
+      tabs.forEach((b) => b.classList.toggle('active', b === btn));
+      document.getElementById('panelPlantilla').hidden = btn.dataset.tab !== 'plantilla';
+      document.getElementById('panelPartidos').hidden = btn.dataset.tab !== 'partidos';
+      document.getElementById('panelClasificacion').hidden = btn.dataset.tab !== 'clasificacion';
+    }));
+    loadClasificacionEquipo(equipo, [...proximos, ...jugados]);
   } catch (err) {
     content.innerHTML = `<p class="empty-state">${escapeHtml(err.message)}</p>`;
   }

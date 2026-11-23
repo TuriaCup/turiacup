@@ -50,6 +50,7 @@ function renderMatchCard(m) {
       </div>
       ${scoreHtml}
       ${meta.length ? `<span class="match-meta">${meta.join(' · ')}</span>` : ''}
+      <a class="match-ficha" href="partido.html?id=${m.id}" aria-label="Ver ficha del partido"></a>
       ${scorers ? `<div class="match-scorers">⚽ ${scorers}</div>` : ''}
     </div>
   `;
