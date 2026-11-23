@@ -274,3 +274,7 @@
 .pc-estado { gap: 4px; }
 .pc-estado button { padding: 8px 2px; font-size: .8rem; min-width: 0; line-height: 1.2; }
 .pc-estado button small { display: block; font-size: .9rem; opacity: .8; }
+.btn-small.directo.editar { background: #fff8ef; border-color: var(--accent, #f0a030); color: var(--blue-900); }
+.btn-reiniciar { display: block; width: 100%; margin-top: 12px; padding: 14px; border: 1px solid #f2b8b8; border-radius: var(--radius); background: #fff; color: #b01e1e; font: inherit; font-weight: 700; cursor: pointer; }
+.dj-edicion { background: #fff8ef; border: 1px solid var(--accent, #f0a030); border-radius: 8px; padding: 8px 10px; }
+.dj-descuadre { background: #fff3cd; border-radius: 8px; padding: 8px 10px; font-size: .85rem; margin: 0 0 12px; }

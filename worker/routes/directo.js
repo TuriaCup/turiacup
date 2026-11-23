@@ -1,5 +1,7 @@
 import { jsonResponse, parseId } from '../lib/http.js';
-import { ensureDirecto, recalcularMarcador, listarEventos, TIPOS_EVENTO } from '../lib/directo.js';
+import {
+  ensureDirecto, recalcularMarcador, listarEventos, sincronizarOficial, importarGolesComoEventos, TIPOS_EVENTO,
+} from '../lib/directo.js';
 
 async function getPartido(env, id) {
   return env.DB.prepare(
@@ -38,7 +40,9 @@ export async function handleGetDirecto(request, env, idParam) {
   const id = parseId(idParam);
   if (!id) return jsonResponse({ error: 'Id de partido inválido.' }, 400);
   await ensureDirecto(env);
-  if (!(await getPartido(env, id))) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
+  const partido = await getPartido(env, id);
+  if (!partido) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
+  if (partido.played) await importarGolesComoEventos(env, id);
   return jsonResponse(await estadoCompleto(env, id));
 }
 
@@ -66,7 +70,7 @@ export async function handleAnadirEvento(request, env, idParam) {
   await ensureDirecto(env);
   const partido = await getPartido(env, id);
   if (!partido) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
-  if (!partido.live) return jsonResponse({ error: 'El partido no está en juego. Pulsa «Iniciar partido».' }, 409);
+  if (!partido.live && !partido.played) return jsonResponse({ error: 'El partido no está en juego. Pulsa «Iniciar partido».' }, 409);
 
   let payload = null;
   try { payload = await request.json(); } catch { /* sin cuerpo */ }
@@ -82,6 +86,7 @@ export async function handleAnadirEvento(request, env, idParam) {
   await env.DB.prepare('INSERT INTO match_events (match_id, team_id, player_id, type) VALUES (?, ?, ?, ?)')
     .bind(id, jugador.team_id, playerId, type).run();
   await recalcularMarcador(env, partido);
+  if (partido.played) await sincronizarOficial(env, partido);
   return jsonResponse(await estadoCompleto(env, id));
 }
 
@@ -93,10 +98,11 @@ export async function handleBorrarEvento(request, env, idParam, eventParam) {
   await ensureDirecto(env);
   const partido = await getPartido(env, id);
   if (!partido) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
-  if (!partido.live) return jsonResponse({ error: 'Solo se puede deshacer mientras el partido está en juego.' }, 409);
+  if (!partido.live && !partido.played) return jsonResponse({ error: 'El partido no está en juego.' }, 409);
 
   await env.DB.prepare('DELETE FROM match_events WHERE id = ? AND match_id = ?').bind(eventId, id).run();
   await recalcularMarcador(env, partido);
+  if (partido.played) await sincronizarOficial(env, partido);
   return jsonResponse(await estadoCompleto(env, id));
 }
 
@@ -128,5 +134,22 @@ export async function handleFinalizarPartido(request, env, idParam) {
     );
   }
   await env.DB.batch(sentencias);
+  return jsonResponse(await estadoCompleto(env, id));
+}
+
+// POST /api/admin/partidos/:id/reiniciar  → vuelve a «Pendiente» y borra marcador, goles e incidencias
+export async function handleReiniciarPartido(request, env, idParam) {
+  const id = parseId(idParam);
+  if (!id) return jsonResponse({ error: 'Id de partido inválido.' }, 400);
+  await ensureDirecto(env);
+  const partido = await getPartido(env, id);
+  if (!partido) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
+
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM match_events WHERE match_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM match_live WHERE match_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM goals WHERE match_id = ?').bind(id),
+    env.DB.prepare('UPDATE matches SET home_score = NULL, away_score = NULL, played = 0 WHERE id = ?').bind(id),
+  ]);
   return jsonResponse(await estadoCompleto(env, id));
 }

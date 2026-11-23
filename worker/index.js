@@ -15,6 +15,7 @@ import {
   handleAnadirEvento,
   handleBorrarEvento,
   handleFinalizarPartido,
+  handleReiniciarPartido,
 } from './routes/directo.js';
 import {
   handleGetPlantillaPublica,
@@ -162,6 +163,9 @@ async function routeAdmin(request, env, pathname, method) {
 
   params = matchPath('/api/admin/partidos/:id/eventos/:eventId', pathname);
   if (params && method === 'DELETE') return handleBorrarEvento(request, env, params.id, params.eventId);
+
+  params = matchPath('/api/admin/partidos/:id/reiniciar', pathname);
+  if (params && method === 'POST') return handleReiniciarPartido(request, env, params.id);
 
   params = matchPath('/api/admin/partidos/:id/finalizar', pathname);
   if (params && method === 'POST') return handleFinalizarPartido(request, env, params.id);

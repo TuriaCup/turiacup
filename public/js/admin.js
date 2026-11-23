@@ -34,7 +34,16 @@ let loteArchivos = [];
 let torneoPublico = false;
 let subidasAbiertas = true;
 
-let currentTab = 'equipos';
+// Memoria de la pantalla: pestaña, filtros y partido abierto sobreviven a recargas y a cerrar el navegador.
+const MEMORIA_CLAVE = 'turia_admin_estado';
+function memLeer() {
+  try { return JSON.parse(localStorage.getItem(MEMORIA_CLAVE)) || {}; } catch { return {}; }
+}
+function memGuardar(parcial) {
+  try { localStorage.setItem(MEMORIA_CLAVE, JSON.stringify({ ...memLeer(), ...parcial })); } catch { /* sin memoria */ }
+}
+
+let currentTab = memLeer().tab || 'equipos';
 
 // --- Auth ---
 
@@ -105,7 +114,9 @@ adminTabs.forEach((btn) => {
 });
 
 function showTab(tab) {
+  if (!panels[tab]) tab = 'equipos';
   currentTab = tab;
+  memGuardar({ tab });
   adminTabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
   Object.entries(panels).forEach(([key, el]) => { el.hidden = key !== tab; });
   if (tab === 'equipos') renderEquiposTab();
@@ -1049,22 +1060,58 @@ function renderPartidosTab() {
     <div id="partidosListContainer"></div>
   `;
 
-  document.getElementById('partidosCategoriaFilter').addEventListener('change', loadPartidosList);
-  document.getElementById('partidosFaseFilter').addEventListener('change', loadPartidosList);
+  // Restaurar lo último que se estaba mirando
+  const mem = memLeer();
+  const poner = (id, valor) => {
+    const el = document.getElementById(id);
+    if (valor && el && (el.tagName !== 'SELECT' || [...el.options].some((o) => o.value === valor))) el.value = valor;
+  };
+  poner('partidosCategoriaFilter', mem.categoria);
+  poner('partidosFaseFilter', mem.fase);
+  poner('partidosBuscar', mem.buscar);
+  if (mem.estado) {
+    document.querySelectorAll('#partidosEstado button').forEach((b) => b.classList.toggle('active', b.dataset.estado === mem.estado));
+  }
+
+  document.getElementById('partidosCategoriaFilter').addEventListener('change', (e) => { memGuardar({ categoria: e.target.value, directoId: null }); loadPartidosList(); });
+  document.getElementById('partidosFaseFilter').addEventListener('change', (e) => { memGuardar({ fase: e.target.value, campo: '', directoId: null }); loadPartidosList(); });
   document.querySelectorAll('#partidosEstado button').forEach((b) => b.addEventListener('click', () => {
     document.querySelectorAll('#partidosEstado button').forEach((x) => x.classList.toggle('active', x === b));
+    memGuardar({ estado: b.dataset.estado });
     pintarPartidos();
   }));
-  document.getElementById('partidosCampoFilter').addEventListener('change', pintarPartidos);
-  document.getElementById('partidosBuscar').addEventListener('input', pintarPartidos);
+  document.getElementById('partidosCampoFilter').addEventListener('change', (e) => { memGuardar({ campo: e.target.value }); pintarPartidos(); });
+  document.getElementById('partidosBuscar').addEventListener('input', (e) => { memGuardar({ buscar: e.target.value }); pintarPartidos(); });
   document.getElementById('newPartidoBtn').addEventListener('click', () => showPartidoForm(null));
 
-  loadPartidosList();
+  loadPartidosList().then(restaurarDirecto);
+}
+
+// Si había un partido abierto en el panel, se vuelve a abrir tal cual.
+async function restaurarDirecto() {
+  const id = memLeer().directoId;
+  if (!id) return;
+  let btn = document.querySelector(`.pc-card[data-id="${id}"] [data-action="directo-partido"]`);
+  if (!btn) {
+    // El partido puede haber cambiado de estado: se busca en «Todos».
+    document.querySelectorAll('#partidosEstado button').forEach((b) => b.classList.toggle('active', b.dataset.estado === 'todos'));
+    const campo = document.getElementById('partidosCampoFilter');
+    if (campo) campo.value = '';
+    const buscar = document.getElementById('partidosBuscar');
+    if (buscar) buscar.value = '';
+    pintarPartidos();
+    btn = document.querySelector(`.pc-card[data-id="${id}"] [data-action="directo-partido"]`);
+  }
+  if (!btn) { memGuardar({ directoId: null }); return; }
+  await toggleDirecto(id, btn);
+  await new Promise((r) => setTimeout(r, 600)); // deja terminar el desplazamiento suave de toggleDirecto
+  const panel = document.querySelector('.directo-row');
+  if (panel) panel.scrollIntoView({ block: 'start', behavior: 'instant' });
 }
 
 function rellenarCampos() {
   const sel = document.getElementById('partidosCampoFilter');
-  const actual = sel.value;
+  const actual = sel.value || memLeer().campo || '';
   const campos = [...new Set(partidosCache.map((p) => p.venue).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
   const hayVacios = partidosCache.some((p) => !p.venue);
   sel.innerHTML = '<option value="">Todos los campos</option>'
@@ -1120,8 +1167,8 @@ function pintarPartidos() {
             <span><strong>${escapeHtml(p.category)}</strong> · ${p.round_name ? escapeHtml(p.round_name) : (p.group_name ? `Grupo ${escapeHtml(p.group_name)}` : '')}${p.played ? '' : (p.live ? ' · <span class="en-juego">● EN JUEGO</span>' : ' · Por jugar')}</span>
           </div>
           <div class="pc-actions">
-            ${p.played ? '' : `<button class="btn-small directo" data-action="directo-partido" data-id="${p.id}">${p.live ? '● Seguir en directo' : '▶ Directo'}</button>`}
-            <button class="btn-small ${p.played ? 'primary' : ''}" data-action="resultado-partido" data-id="${p.id}">Resultado</button>
+            <button class="btn-small directo ${p.played ? 'editar' : ''}" data-action="directo-partido" data-id="${p.id}">${p.played ? '✎ Editar resultado' : (p.live ? '● Seguir en directo' : '▶ Directo')}</button>
+            <button class="btn-small" data-action="resultado-partido" data-id="${p.id}">Resultado</button>
             <button class="btn-small" data-action="edit-partido" data-id="${p.id}">Editar</button>
             <button class="btn-small danger" data-action="delete-partido" data-id="${p.id}">Eliminar</button>
           </div>
@@ -1285,9 +1332,11 @@ async function toggleDirecto(matchId, btn) {
   if (existente && existente.classList.contains('directo-row')) {
     existente.remove();
     directoActual = null;
+    memGuardar({ directoId: null });
     return;
   }
   document.querySelectorAll('.resultado-row').forEach((r) => r.remove());
+  memGuardar({ directoId: matchId });
   const panel = document.createElement('div');
   panel.className = 'resultado-row directo-row';
   panel.innerHTML = '<p>Cargando partido…</p>';
@@ -1333,15 +1382,21 @@ function pintarDirecto(panel) {
   const nombreJugador = (e) => `${e.dorsal != null ? `${e.dorsal}. ` : ''}${e.nombre.charAt(0)}. ${e.apellidos}`;
   const equipoDe = (e) => (e.team_id === p.home_team_id ? p.home_team_name : p.away_team_name);
 
+  const reiniciar = `<button type="button" class="btn-reiniciar" data-action="reiniciar-partido" data-id="${p.id}">↺ Volver a pendiente (borrar todo)</button>`;
   let cuerpo;
-  if (p.played) {
-    cuerpo = '<p class="dj-aviso">Este partido ya está terminado. Si hay que corregir algo, usa el botón «Resultado».</p>';
-  } else if (!p.live) {
+  if (!p.live && !p.played) {
     cuerpo = `
       <p class="dj-aviso">El partido aún no ha empezado.</p>
       <button type="button" class="btn-iniciar" data-action="iniciar-partido" data-id="${p.id}">▶ Iniciar partido</button>`;
   } else {
+    // Aviso si el marcador guardado no sale de las incidencias (partidos cerrados a mano)
+    const golesEq = (t, tipo) => eventos.filter((e) => e.type === tipo && e.team_id === t).length;
+    const calcLocal = golesEq(p.home_team_id, 'gol') + golesEq(p.away_team_id, 'propia');
+    const calcVisit = golesEq(p.away_team_id, 'gol') + golesEq(p.home_team_id, 'propia');
+    const descuadre = p.played && (calcLocal !== (p.home_score ?? 0) || calcVisit !== (p.away_score ?? 0))
+      ? `<p class="dj-descuadre">⚠ El marcador guardado (${p.home_score ?? 0}-${p.away_score ?? 0}) no coincide con las incidencias (${calcLocal}-${calcVisit}). Al anotar o deshacer algo, el marcador se ajustará a las incidencias.</p>` : '';
     cuerpo = `
+      ${p.played ? `<p class="dj-aviso dj-edicion">✎ Estás editando un partido terminado. Cada cambio se guarda al instante.</p>${descuadre}` : ''}
       <div class="dj-plantillas">
         ${columnaPlantilla(p.home_team_name, home)}
         ${columnaPlantilla(p.away_team_name, away)}
@@ -1349,9 +1404,10 @@ function pintarDirecto(panel) {
       <h4 class="dj-titulo">Incidencias</h4>
       ${eventos.length ? `<ul class="dj-eventos">${[...eventos].reverse().map((e) => `
         <li><span>${ICONOS_EVENTO[e.type]} ${escapeHtml(NOMBRES_EVENTO[e.type])} · ${escapeHtml(nombreJugador(e))} <small>(${escapeHtml(equipoDe(e))})</small></span>
-          <button type="button" class="btn-small" data-action="deshacer-evento" data-id="${p.id}" data-event="${e.id}">Deshacer</button></li>`).join('')}</ul>`
+          <button type="button" class="btn-small" data-action="deshacer-evento" data-id="${p.id}" data-event="${e.id}">Quitar</button></li>`).join('')}</ul>`
         : '<p class="empty-state">Todavía no hay incidencias. Toca un jugador para anotar un gol o una tarjeta.</p>'}
-      <button type="button" class="btn-finalizar" data-action="finalizar-partido" data-id="${p.id}">■ Finalizar partido</button>`;
+      ${p.live ? `<button type="button" class="btn-finalizar" data-action="finalizar-partido" data-id="${p.id}">■ Finalizar partido</button>` : ''}
+      ${reiniciar}`;
   }
 
   panel.innerHTML = `
@@ -1406,6 +1462,7 @@ async function accionDirecto(matchId, accion, datos = {}) {
       body: JSON.stringify({ player_id: datos.player_id, type: datos.type }),
     }],
     deshacer: [`/api/admin/partidos/${matchId}/eventos/${datos.eventId}`, { method: 'DELETE' }],
+    reiniciar: [`/api/admin/partidos/${matchId}/reiniciar`, { method: 'POST' }],
   }[accion];
   try {
     directoActual = await fetchJson(opciones[0], opciones[1]);
@@ -1417,9 +1474,18 @@ async function accionDirecto(matchId, accion, datos = {}) {
   const idx = partidosCache.findIndex((x) => String(x.id) === String(matchId));
   if (idx >= 0) partidosCache[idx] = { ...partidosCache[idx], ...directoActual.partido, goles: partidosCache[idx].goles };
 
-  if (accion === 'iniciar' || accion === 'finalizar') {
+  if (accion === 'reiniciar') {
+    // Vuelve a pendientes: se cierra el panel y se muestra en esa pestaña.
+    directoActual = null;
+    memGuardar({ directoId: null, estado: 'pendientes' });
+    document.querySelectorAll('#partidosEstado button').forEach((b) => b.classList.toggle('active', b.dataset.estado === 'pendientes'));
+    pintarPartidos();
+    const tarjeta = document.querySelector(`.pc-card[data-id="${matchId}"]`);
+    if (tarjeta) tarjeta.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  } else if (accion === 'iniciar' || accion === 'finalizar') {
     // Al cambiar de estado el partido cambia de pestaña: pasamos a ella y reabrimos su panel.
     const destino = accion === 'iniciar' ? 'enjuego' : 'terminados';
+    memGuardar({ estado: destino });
     document.querySelectorAll('#partidosEstado button').forEach((b) => b.classList.toggle('active', b.dataset.estado === destino));
     pintarPartidos();
     const btn = document.querySelector(`.pc-card[data-id="${matchId}"] [data-action="resultado-partido"]`);
@@ -1557,6 +1623,12 @@ panels.partidos.addEventListener('click', async (e) => {
     cerrarHojaJugador();
   } else if (action === 'deshacer-evento') {
     await accionDirecto(id, 'deshacer', { eventId: btn.dataset.event });
+  } else if (action === 'reiniciar-partido') {
+    const d = directoActual;
+    const aviso = d.partido.played
+      ? `Este partido está terminado (${d.partido.home_score}-${d.partido.away_score}). ¿Volver a «Pendiente»? Se borrarán el marcador, los goles y las tarjetas, y dejará de contar en la clasificación.`
+      : '¿Volver el partido a «Pendiente»? Se borrarán el marcador, los goles y las tarjetas anotados.';
+    if (confirm(aviso)) await accionDirecto(id, 'reiniciar');
   } else if (action === 'finalizar-partido') {
     const d = directoActual;
     if (confirm(`¿Finalizar el partido con el resultado ${d.partido.home_score} - ${d.partido.away_score}? Se guardará como resultado oficial.`)) {

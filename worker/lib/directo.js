@@ -45,3 +45,36 @@ export async function listarEventos(env, matchId) {
   ).bind(matchId).all();
   return results;
 }
+
+// En un partido ya terminado, el resultado oficial (tabla goals) se rehace a partir de las incidencias.
+export async function sincronizarOficial(env, partido) {
+  const { results: goleadores } = await env.DB.prepare(
+    "SELECT player_id, team_id, COUNT(*) AS n FROM match_events WHERE match_id = ? AND type = 'gol' GROUP BY player_id, team_id"
+  ).bind(partido.id).all();
+  const sentencias = [env.DB.prepare('DELETE FROM goals WHERE match_id = ?').bind(partido.id)];
+  for (const g of goleadores) {
+    sentencias.push(
+      env.DB.prepare('INSERT INTO goals (match_id, player_id, team_id, count) VALUES (?, ?, ?, ?)')
+        .bind(partido.id, g.player_id, g.team_id, g.n)
+    );
+  }
+  await env.DB.batch(sentencias);
+}
+
+// Partidos cerrados a mano (con «Resultado») no tienen incidencias: se crean a partir de sus goleadores
+// para poder corregirlos igual que los demás.
+export async function importarGolesComoEventos(env, matchId) {
+  const hay = await env.DB.prepare('SELECT COUNT(*) AS n FROM match_events WHERE match_id = ?').bind(matchId).first();
+  if (hay.n > 0) return;
+  const { results } = await env.DB.prepare('SELECT player_id, team_id, count FROM goals WHERE match_id = ?').bind(matchId).all();
+  const sentencias = [];
+  for (const g of results) {
+    for (let i = 0; i < g.count; i++) {
+      sentencias.push(
+        env.DB.prepare('INSERT INTO match_events (match_id, team_id, player_id, type) VALUES (?, ?, ?, ?)')
+          .bind(matchId, g.team_id, g.player_id, 'gol')
+      );
+    }
+  }
+  if (sentencias.length) await env.DB.batch(sentencias);
+}
