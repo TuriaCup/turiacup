@@ -66,6 +66,8 @@ Worker, nunca en `wrangler.toml`; en local van en `.dev.vars` (ignorado por git)
   - **`goals`**: goles de un jugador en un partido (`count` = cuántos).
 - `schema_ajustes.sql` — tabla **`settings`** (`key`/`value`): `torneo_publico` (`'0'` = modo interno,
   `'1'` = publicado) y `subidas_abiertas` (`'0'` = plazo cerrado para los clubes).
+- `schema_compartidos.sql` — **`compartidos`** (`codigo`, `titulo`, `html`): páginas que solo se ven con el
+  enlace `/c/<codigo>` (propuestas de calendario para el comité). Las sirve `worker/routes/compartidos.js`.
 - `schema_entregas.sql` — **`upload_links`** (una fila por equipo: `slug` único con el código aleatorio,
   `last_upload_at`, `last_upload_count`) y **`staff`** (cuerpo técnico del equipo: `nombre`, `apellidos`,
   `cargo`, `dni`). Las crea también `ensureEntregasTables` al generar los enlaces.
@@ -126,6 +128,9 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **`subidas_abiertas` falla en ABIERTO**, al revés que `torneo_publico`: si falta la clave o peta la
   consulta, los clubes pueden seguir entregando. El enlace ya es el secreto; el plazo es comodidad, no
   seguridad. `torneo_publico`, en cambio, falla en cerrado.
+- **Lo que solo se ve con enlace NO va en `public/`**: el repo de GitHub es público, así que un fichero ahí
+  (aunque tenga nombre secreto) lo ve cualquiera. Va en la tabla `compartidos` y se sirve en `/c/<codigo>`
+  con `noindex`. Para cambiar una página, `UPDATE compartidos SET html = … WHERE codigo = …` (mismo enlace).
 - **`/plantilla/:slug` no es un fichero**: lo sirve el Worker con `env.ASSETS.fetch` (el binding que antes
   estaba declarado sin usar) devolviendo `subir-plantilla.html`, y si eso fallara, redirige a
   `/subir-plantilla.html?c=<slug>`. El JS de la página lee el slug de las dos formas. Ojo con la ruta

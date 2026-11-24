@@ -21,6 +21,7 @@ import {
   handleGetPlantillaPublica,
   handleGuardarPlantillaPublica,
 } from './routes/plantilla.js';
+import { handleCompartido } from './routes/compartidos.js';
 import {
   handleImportarEquipos,
   handleGetAjustes,
@@ -207,6 +208,9 @@ export default {
 
       params = matchPath('/plantilla/:slug', pathname);
       if (params && method === 'GET') return servirPaginaPlantilla(request, env, params.slug);
+
+      params = matchPath('/c/:codigo', pathname);
+      if (params && method === 'GET') return handleCompartido(request, env, params.codigo);
 
       if (pathname === '/api/admin/login' && method === 'POST') return handleLogin(request, env);
       if (pathname === '/api/admin/logout' && method === 'POST') return handleLogout(request);
