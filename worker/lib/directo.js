@@ -18,6 +18,14 @@ export async function ensureDirecto(env) {
       created_at TEXT NOT NULL DEFAULT (datetime('now')))`),
     env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_match_events_match ON match_events (match_id)'),
   ]);
+  // Huecos de la fase final: «Mejor primero», «Ganador Octavo 1»… mientras no hay equipo asignado.
+  for (const col of ['home_label', 'away_label']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE matches ADD COLUMN ${col} TEXT`).run();
+    } catch {
+      // ya existe
+    }
+  }
   tablasListas = true;
 }
 

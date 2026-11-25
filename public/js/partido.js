@@ -38,7 +38,7 @@ async function load() {
     const equipo = (id, name, logo) => `
       <div class="ficha-equipo">
         ${logo ? `<img src="${escapeHtml(logo)}" alt="">` : ''}
-        <a href="equipo.html?id=${id}">${escapeHtml(name)}</a>
+        ${id ? `<a href="equipo.html?id=${id}">${escapeHtml(name)}</a>` : `<span class="por-definir">${escapeHtml(name)}</span>`}
       </div>`;
 
     const info = [m.category];

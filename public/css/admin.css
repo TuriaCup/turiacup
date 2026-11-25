@@ -213,6 +213,7 @@
 /* Lista de partidos en tarjetas (sin deslizar de lado) */
 #partidosBuscar { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font: inherit; min-width: 0; flex: 1; }
 .pc-count { color: var(--text-muted); margin: 8px 0; }
+.pc-pend { color: var(--text-muted); font-size: .85rem; align-self: center; }
 .pc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 .pc-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
 .pc-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-weight: 700; }

@@ -8,7 +8,7 @@ import { ensureEntregasTables, ensureIntolerancias, construirSlug, getPlantillaD
 const CATEGORIAS_VALIDAS = ['U9', 'U10', 'U11', 'U12'];
 const FASES_VALIDAS = ['grupos', 'oro', 'plata', 'bronce'];
 const TEAM_MAX_LEN = { name: 120, city: 120, logo_url: 500, group_name: 20 };
-const MATCH_MAX_LEN = { group_name: 20, round_name: 60, venue: 120 };
+const MATCH_MAX_LEN = { group_name: 20, round_name: 60, venue: 120, home_label: 60, away_label: 60 };
 const PLAYER_MAX_LEN = { nombre: 120, apellidos: 120, dni: 20, intolerancias: 200 };
 const MAX_LINEAS_IMPORT = 500;
 const LOTE_IMPORT = 50;
@@ -432,23 +432,34 @@ async function validateMatchPayload(payload, env) {
   const away_team_id = parseId(payload.away_team_id);
   const scheduled_at = clean(payload.scheduled_at);
   const venue = clean(payload.venue);
+  const home_label = clean(payload.home_label);
+  const away_label = clean(payload.away_label);
 
   if (!CATEGORIAS_VALIDAS.includes(category)) return { error: 'Categoría no válida.' };
   if (!FASES_VALIDAS.includes(phase)) return { error: 'Fase no válida.' };
-  if (!home_team_id || !away_team_id) return { error: 'Selecciona ambos equipos.' };
-  if (home_team_id === away_team_id) return { error: 'Un equipo no puede jugar contra sí mismo.' };
+  // En la fase final un equipo puede quedar «por definir» con un texto (p. ej. «Mejor primero»).
+  if (phase === 'grupos' && (!home_team_id || !away_team_id)) return { error: 'Selecciona ambos equipos.' };
+  if ((!home_team_id && !home_label) || (!away_team_id && !away_label)) {
+    return { error: 'Elige cada equipo o escribe quién ocupa el hueco (p. ej. «Mejor primero»).' };
+  }
+  if (home_team_id && home_team_id === away_team_id) return { error: 'Un equipo no puede jugar contra sí mismo.' };
   for (const [field, max] of Object.entries(MATCH_MAX_LEN)) {
-    const value = { group_name, round_name, venue }[field];
+    const value = { group_name, round_name, venue, home_label, away_label }[field];
     if (value && value.length > max) return { error: `El campo ${field} es demasiado largo.` };
   }
 
-  const { results: teams } = await env.DB.prepare('SELECT id FROM teams WHERE id IN (?, ?)')
-    .bind(home_team_id, away_team_id).all();
-  if (teams.length !== 2) return { error: 'Alguno de los equipos no existe.' };
+  const ids = [home_team_id, away_team_id].filter(Boolean);
+  if (ids.length) {
+    const { results: teams } = await env.DB.prepare(`SELECT id FROM teams WHERE id IN (${ids.map(() => '?').join(',')})`)
+      .bind(...ids).all();
+    if (teams.length !== ids.length) return { error: 'Alguno de los equipos no existe.' };
+  }
 
   return {
     category, phase, group_name: group_name || null, round_name: round_name || null,
-    home_team_id, away_team_id, scheduled_at: scheduled_at || null, venue: venue || null,
+    home_team_id: home_team_id || null, away_team_id: away_team_id || null,
+    home_label: home_label || null, away_label: away_label || null,
+    scheduled_at: scheduled_at || null, venue: venue || null,
   };
 }
 
@@ -459,12 +470,13 @@ export async function handleCreatePartido(request, env) {
   const data = await validateMatchPayload(payload, env);
   if (data.error) return jsonResponse({ error: data.error }, 400);
 
+  await ensureDirecto(env);   // crea las columnas home_label/away_label si faltan
   const result = await env.DB.prepare(
-    `INSERT INTO matches (category, phase, group_name, round_name, home_team_id, away_team_id, scheduled_at, venue)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO matches (category, phase, group_name, round_name, home_team_id, away_team_id, home_label, away_label, scheduled_at, venue)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     data.category, data.phase, data.group_name, data.round_name,
-    data.home_team_id, data.away_team_id, data.scheduled_at, data.venue
+    data.home_team_id, data.away_team_id, data.home_label, data.away_label, data.scheduled_at, data.venue
   ).run();
 
   return jsonResponse({ ok: true, id: result.meta.last_row_id }, 201);
@@ -483,13 +495,14 @@ export async function handleUpdatePartido(request, env, idParam) {
   const data = await validateMatchPayload(payload, env);
   if (data.error) return jsonResponse({ error: data.error }, 400);
 
+  await ensureDirecto(env);
   await env.DB.prepare(
     `UPDATE matches SET category = ?, phase = ?, group_name = ?, round_name = ?,
-            home_team_id = ?, away_team_id = ?, scheduled_at = ?, venue = ?
+            home_team_id = ?, away_team_id = ?, home_label = ?, away_label = ?, scheduled_at = ?, venue = ?
      WHERE id = ?`
   ).bind(
     data.category, data.phase, data.group_name, data.round_name,
-    data.home_team_id, data.away_team_id, data.scheduled_at, data.venue, id
+    data.home_team_id, data.away_team_id, data.home_label, data.away_label, data.scheduled_at, data.venue, id
   ).run();
 
   return jsonResponse({ ok: true });
@@ -518,6 +531,9 @@ export async function handleResultadoPartido(request, env, idParam) {
     'SELECT id, home_team_id, away_team_id FROM matches WHERE id = ?'
   ).bind(id).first();
   if (!match) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
+  if (!match.home_team_id || !match.away_team_id) {
+    return jsonResponse({ error: 'Asigna los dos equipos antes de guardar el resultado.' }, 409);
+  }
 
   const payload = await readJson(request);
   if (!payload) return jsonResponse({ error: 'Solicitud inválida.' }, 400);

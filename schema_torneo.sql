@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS matches (
   round_name TEXT,
   home_team_id INTEGER REFERENCES teams(id),
   away_team_id INTEGER REFERENCES teams(id),
+  home_label TEXT,   -- fase final: hueco sin equipo aún («Mejor primero», «Ganador Octavo 1»)
+  away_label TEXT,
   home_score INTEGER,
   away_score INTEGER,
   played INTEGER NOT NULL DEFAULT 0,

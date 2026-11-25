@@ -188,12 +188,13 @@ export async function handlePartidos(request, env) {
     return jsonResponse({ error: 'Falta el parámetro categoria o no es válido.' }, 400);
   }
 
-  let query = `SELECT m.*, ht.name AS home_team_name, at.name AS away_team_name,
+  let query = `SELECT m.*, COALESCE(ht.name, m.home_label, 'Por definir') AS home_team_name,
+    COALESCE(at.name, m.away_label, 'Por definir') AS away_team_name,
     ht.logo_url AS home_logo, at.logo_url AS away_logo,
     ml.match_id IS NOT NULL AS live
     FROM matches m
-    JOIN teams ht ON ht.id = m.home_team_id
-    JOIN teams at ON at.id = m.away_team_id
+    LEFT JOIN teams ht ON ht.id = m.home_team_id
+    LEFT JOIN teams at ON at.id = m.away_team_id
     LEFT JOIN match_live ml ON ml.match_id = m.id
     WHERE m.category = ?`;
   const binds = [categoria];
@@ -238,12 +239,12 @@ export async function handleGetPartido(request, env, idParam) {
   const partido = await env.DB.prepare(
     `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
             m.home_score, m.away_score, m.played, m.scheduled_at, m.venue,
-            ht.name AS home_team_name, ht.logo_url AS home_logo,
-            at.name AS away_team_name, at.logo_url AS away_logo,
+            COALESCE(ht.name, m.home_label, 'Por definir') AS home_team_name, ht.logo_url AS home_logo,
+            COALESCE(at.name, m.away_label, 'Por definir') AS away_team_name, at.logo_url AS away_logo,
             ml.match_id IS NOT NULL AS live
      FROM matches m
-     JOIN teams ht ON ht.id = m.home_team_id
-     JOIN teams at ON at.id = m.away_team_id
+     LEFT JOIN teams ht ON ht.id = m.home_team_id
+     LEFT JOIN teams at ON at.id = m.away_team_id
      LEFT JOIN match_live ml ON ml.match_id = m.id
      WHERE m.id = ?`
   ).bind(id).first();

@@ -20,7 +20,8 @@ const NOMBRE_FASE = { oro: '🥇 Oro', plata: '🥈 Plata', bronce: '🥉 Bronce
 function renderRondas(partidos) {
   const rondas = [];
   for (const m of partidos) {
-    const nombre = m.round_name || 'Cruces';
+    // «Octavos de final · 3» se agrupa en la columna «Octavos de final»
+    const nombre = (m.round_name || 'Cruces').split(' · ')[0];
     let r = rondas.find((x) => x.nombre === nombre);
     if (!r) rondas.push(r = { nombre, partidos: [] });
     r.partidos.push(m);

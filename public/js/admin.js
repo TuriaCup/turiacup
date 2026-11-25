@@ -1164,8 +1164,9 @@ function pintarPartidos() {
             <span><strong>${escapeHtml(p.category)}</strong> · ${p.round_name ? escapeHtml(p.round_name) : (p.group_name ? `Grupo ${escapeHtml(p.group_name)}` : '')}${p.played ? '' : (p.live ? ' · <span class="en-juego">● EN JUEGO</span>' : ' · Por jugar')}</span>
           </div>
           <div class="pc-actions">
+            ${p.home_team_id && p.away_team_id ? `
             <button class="btn-small directo ${p.played ? 'editar' : ''}" data-action="directo-partido" data-id="${p.id}">${p.played ? '✎ Editar resultado' : (p.live ? '● Seguir en directo' : '▶ Directo')}</button>
-            <button class="btn-small" data-action="resultado-partido" data-id="${p.id}">Resultado</button>
+            <button class="btn-small" data-action="resultado-partido" data-id="${p.id}">Resultado</button>` : '<span class="pc-pend">Equipos por definir · pulsa «Editar» para asignarlos</span>'}
             <button class="btn-small" data-action="edit-partido" data-id="${p.id}">Editar</button>
             <button class="btn-small danger" data-action="delete-partido" data-id="${p.id}">Eliminar</button>
           </div>
@@ -1227,11 +1228,13 @@ function showPartidoForm(partido) {
       </div>
       <div class="form-row">
         <label>Equipo local *</label>
-        <select name="home_team_id" id="homeTeamSelect" required></select>
+        <select name="home_team_id" id="homeTeamSelect"></select>
+        <input type="text" name="home_label" maxlength="60" placeholder="Si aún no se sabe: «Mejor primero», «Ganador Octavo 1»…" value="${partido && partido.home_label ? escapeHtml(partido.home_label) : ''}">
       </div>
       <div class="form-row">
         <label>Equipo visitante *</label>
-        <select name="away_team_id" id="awayTeamSelect" required></select>
+        <select name="away_team_id" id="awayTeamSelect"></select>
+        <input type="text" name="away_label" maxlength="60" placeholder="Si aún no se sabe: «Mejor cuarto», «Ganador Octavo 2»…" value="${partido && partido.away_label ? escapeHtml(partido.away_label) : ''}">
       </div>
       <div class="form-row">
         <label>Fecha y hora</label>
@@ -1251,15 +1254,15 @@ function showPartidoForm(partido) {
 
   function populateTeamSelects() {
     const cat = document.getElementById('partidoCategoria').value;
-    const options = teamsCache.filter((t) => t.category === cat)
+    const options = '<option value="">— Por definir —</option>' + teamsCache.filter((t) => t.category === cat)
       .map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
     const homeSel = document.getElementById('homeTeamSelect');
     const awaySel = document.getElementById('awayTeamSelect');
     homeSel.innerHTML = options;
     awaySel.innerHTML = options;
     if (partido) {
-      homeSel.value = partido.home_team_id;
-      awaySel.value = partido.away_team_id;
+      homeSel.value = partido.home_team_id || '';
+      awaySel.value = partido.away_team_id || '';
     }
   }
   populateTeamSelects();

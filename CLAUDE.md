@@ -106,6 +106,10 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **Guardar un resultado reescribe los goleadores**: `handleResultadoPartido` borra todos los
   `goals` del partido y vuelve a insertar los que lleguen. Mandar el marcador sin la lista
   `goals` deja el partido sin goleadores.
+- **Partidos de fase final sin equipo**: `home_team_id`/`away_team_id` pueden ser NULL fuera de la fase de
+  grupos; entonces `home_label`/`away_label` dicen quién ocupará el hueco («Mejor primero», «Ganador Octavo 1»).
+  Las columnas las crea `ensureDirecto` (ALTER TABLE) y las consultas de partidos usan LEFT JOIN +
+  `COALESCE(nombre, label, 'Por definir')`. Resultado y directo se bloquean hasta asignar los dos equipos.
 - **La clasificación no se almacena**: se calcula al vuelo con los partidos de `phase='grupos'`
   y `played=1`. Desempate: puntos → diferencia de goles → goles a favor → nombre.
 - **La ruta `/api/admin/equipos/importar` va antes que `/api/admin/equipos/:id`** en `routeAdmin`.
