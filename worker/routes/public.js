@@ -1,5 +1,5 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
-import { estadoPublicacion } from '../lib/ajustes.js';
+import { estadoPublicacion, getAviso } from '../lib/ajustes.js';
 import { ensureDirecto, listarEventos } from '../lib/directo.js';
 import { getProfesionales, compararEquipos } from '../lib/profesionales.js';
 
@@ -272,4 +272,11 @@ export async function handleGetPartido(request, env, idParam) {
   const incidencias = eventos.filter((e) => e.type !== 'gol');
 
   return jsonResponse({ publicado, visible, partido, goles, incidencias });
+}
+
+// Aviso de la organización para el banner de la app. Respeta el modo interno como el resto de rutas públicas.
+export async function handleAviso(request, env) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible, aviso: null });
+  return jsonResponse({ publicado, visible, aviso: await getAviso(env) });
 }

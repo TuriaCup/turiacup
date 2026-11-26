@@ -8,6 +8,7 @@ import {
   handleClasificacion,
   handlePartidos,
   handleGetPartido,
+  handleAviso,
 } from './routes/public.js';
 import {
   handleGetDirecto,
@@ -26,6 +27,8 @@ import {
   handleImportarEquipos,
   handleGetAjustes,
   handleUpdateAjustes,
+  handleGetAviso,
+  handleUpdateAviso,
   handleListEntregas,
   handleGenerarEnlaces,
   handleListHistorial,
@@ -110,6 +113,11 @@ async function routeAdmin(request, env, pathname, method) {
     if (method === 'PUT') return handleUpdateAjustes(request, env);
   }
 
+  if (pathname === '/api/admin/aviso') {
+    if (method === 'GET') return handleGetAviso(request, env);
+    if (method === 'PUT') return handleUpdateAviso(request, env);
+  }
+
   if (pathname === '/api/admin/entregas' && method === 'GET') return handleListEntregas(request, env);
   if (pathname === '/api/admin/entregas/enlaces' && method === 'POST') return handleGenerarEnlaces(request, env);
 
@@ -190,6 +198,7 @@ export default {
       if (pathname === '/api/equipos' && method === 'GET') return handleListEquipos(request, env);
       if (pathname === '/api/clasificacion' && method === 'GET') return handleClasificacion(request, env);
       if (pathname === '/api/partidos' && method === 'GET') return handlePartidos(request, env);
+      if (pathname === '/api/aviso' && method === 'GET') return handleAviso(request, env);
 
       let params = matchPath('/api/equipos/:id', pathname);
       if (params && method === 'GET') return handleGetEquipo(request, env, params.id);

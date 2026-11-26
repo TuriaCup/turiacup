@@ -24,6 +24,7 @@ const panels = {
   plantillas: document.getElementById('panelPlantillas'),
   grupos: document.getElementById('panelGrupos'),
   partidos: document.getElementById('panelPartidos'),
+  avisos: document.getElementById('panelAvisos'),
   importar: document.getElementById('panelImportar'),
   entregas: document.getElementById('panelEntregas'),
   publicacion: document.getElementById('panelPublicacion'),
@@ -123,6 +124,7 @@ function showTab(tab) {
   if (tab === 'plantillas') renderPlantillasTab();
   if (tab === 'grupos') renderGruposTab();
   if (tab === 'partidos') renderPartidosTab();
+  if (tab === 'avisos') renderAvisosTab();
   if (tab === 'importar') renderImportarTab();
   if (tab === 'entregas') renderEntregasTab();
   if (tab === 'publicacion') renderPublicacionTab();
@@ -234,6 +236,109 @@ async function togglePublicacion() {
   } catch (err) {
     feedback.textContent = err.message;
     feedback.classList.add('error');
+  }
+}
+
+// --- Avisos: el banner que sale arriba en la app del torneo ---
+
+const AVISO_MAX = 280;
+const AVISO_EJEMPLOS = [
+  'Los partidos del Campo 2 van con 20 minutos de retraso.',
+  'La entrega de trofeos será a las 19:00 en la grada principal.',
+  'Por la lluvia, los partidos de la tarde se juegan en el Campo 1.',
+];
+
+function avisoHora(iso) {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('es-ES', { weekday: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+async function renderAvisosTab() {
+  panels.avisos.innerHTML = '<p class="empty-state">Cargando…</p>';
+  let aviso = null;
+  try {
+    ({ aviso } = await fetchJson('/api/admin/aviso'));
+  } catch (err) {
+    panels.avisos.innerHTML = `<p class="empty-state">${escapeHtml(err.message)}</p>`;
+    return;
+  }
+  const tipo = aviso ? aviso.tipo : 'info';
+  panels.avisos.innerHTML = `
+    <div class="publicacion-box aviso-box">
+      <h2>Aviso en la app</h2>
+      <p>Un mensaje corto que sale arriba en la app del torneo, en todas las pantallas. Los móviles que la tengan
+        abierta lo ven en menos de un minuto. Sirve para retrasos, cambios de campo, horarios de trofeos…</p>
+      ${torneoPublico ? '' : '<p class="aviso-nota">🔒 El torneo está en modo interno: el aviso solo lo verás tú hasta que lo publiques.</p>'}
+
+      <div class="aviso-actual">
+        <h3>Ahora mismo</h3>
+        ${aviso ? `<div class="aviso-preview ${escapeHtml(aviso.tipo)}">${escapeHtml(aviso.texto)}</div>
+          <small>Publicado el ${escapeHtml(avisoHora(aviso.publicado_at))}</small>`
+          : '<p class="empty-state">No hay ningún aviso publicado.</p>'}
+      </div>
+
+      <form id="avisoForm">
+        <div class="form-row">
+          <label for="avisoTexto">${aviso ? 'Cambiar el aviso' : 'Nuevo aviso'}</label>
+          <textarea id="avisoTexto" rows="3" maxlength="${AVISO_MAX}" placeholder="${escapeHtml(AVISO_EJEMPLOS[0])}">${aviso ? escapeHtml(aviso.texto) : ''}</textarea>
+          <small id="avisoContador"></small>
+        </div>
+        <div class="aviso-tipos">
+          <label><input type="radio" name="avisoTipo" value="info" ${tipo === 'info' ? 'checked' : ''}> <span class="aviso-chip info">Información</span></label>
+          <label><input type="radio" name="avisoTipo" value="urgente" ${tipo === 'urgente' ? 'checked' : ''}> <span class="aviso-chip urgente">Urgente</span></label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-small primary">${aviso ? 'Guardar cambios' : 'Publicar aviso'}</button>
+          ${aviso ? '<button type="button" class="btn-small danger" id="avisoQuitar">Quitar el aviso</button>' : ''}
+        </div>
+        <p class="feedback" id="avisoFeedback"></p>
+      </form>
+      ${aviso ? '' : `<p class="aviso-ejemplos">Ejemplos: ${AVISO_EJEMPLOS.map((e) => `«${escapeHtml(e)}»`).join(' · ')}</p>`}
+    </div>`;
+
+  const texto = document.getElementById('avisoTexto');
+  const contador = document.getElementById('avisoContador');
+  const contar = () => { contador.textContent = `${texto.value.length} / ${AVISO_MAX}`; };
+  texto.addEventListener('input', contar);
+  contar();
+
+  const guardar = async (cuerpo, mensaje) => {
+    const feedback = document.getElementById('avisoFeedback');
+    feedback.className = 'feedback';
+    feedback.textContent = '';
+    try {
+      await fetchJson('/api/admin/aviso', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cuerpo),
+      });
+      await renderAvisosTab();
+      const nuevo = document.getElementById('avisoFeedback');
+      nuevo.textContent = mensaje;
+      nuevo.classList.add('success');
+    } catch (err) {
+      feedback.textContent = err.message;
+      feedback.classList.add('error');
+    }
+  };
+
+  document.getElementById('avisoForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!texto.value.trim()) {
+      const feedback = document.getElementById('avisoFeedback');
+      feedback.textContent = 'Escribe el texto del aviso.';
+      feedback.className = 'feedback error';
+      return;
+    }
+    const tipoElegido = panels.avisos.querySelector('input[name="avisoTipo"]:checked').value;
+    guardar({ texto: texto.value, tipo: tipoElegido }, 'Aviso publicado en la app.');
+  });
+  const quitar = document.getElementById('avisoQuitar');
+  if (quitar) {
+    quitar.addEventListener('click', () => {
+      if (!confirm('¿Quitar el aviso de la app?')) return;
+      guardar({ texto: '' }, 'Aviso quitado.');
+    });
   }
 }
 
