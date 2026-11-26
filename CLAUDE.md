@@ -190,6 +190,8 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **En directo** junta los partidos en juego de las cuatro categorías. En la fase
   final, la etiqueta del partido incluye la copa («Copa Oro · Semifinal · 2»), también en `matchCardHtml` de `utils.js`.
 - **Cómo llegar**: las instalaciones están en `SEDES_TORNEO` (`public/js/miniplano.js`): nombre, `destino` (lo que se
-  busca en Google Maps para la ruta), texto de la entrada e imagen aérea. Se muestran siempre todas, primero las de la
+  busca en Google Maps para la ruta), texto de la entrada y mapa 3D (`imagen` = versión ligera de 1600 px para el
+  móvil, `imagenGrande` = original, que se abre con «Ampliar»). Los originales vienen de la rama `mapas-instalaciones`
+  (que es una versión antigua de la web: no se debe fusionar, solo se copiaron las imágenes). Se muestran siempre todas, primero las de la
   categoría elegida. Un campo se asigna a su instalación por palabra clave (`detectar`: «camarena»/«resort», «cracks»,
   «beniferri»).
