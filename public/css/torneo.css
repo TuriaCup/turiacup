@@ -306,3 +306,15 @@
 .miniplano svg { width: 100%; height: auto; display: block; }
 .miniplano p { margin: 8px 0 0; font-size: 0.9rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 8px; }
 .miniplano-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #ff7900; color: #fff; font-size: 12px; font-weight: 700; }
+
+/* Pestañas del torneo: subpestañas de grupo y botones de fase como botones */
+.grupo-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+button.fase-tab { font: inherit; font-weight: 800; cursor: pointer; }
+#sectionTabs { overflow-x: auto; scrollbar-width: none; }
+#sectionTabs::-webkit-scrollbar { display: none; }
+#sectionTabs .tab-btn { white-space: nowrap; }
+@media (max-width: 600px) {
+  #sectionTabs { justify-content: flex-start; }
+  #sectionTabs { gap: 0; }
+  #sectionTabs .tab-btn { flex: 1 1 auto; padding: 12px 4px; font-size: .84rem; }
+}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Clasificación y equipos — Turia Cup</title>
+<title>Clasificación y resultados — Turia Cup</title>
 <meta name="description" content="Clasificaciones, resultados y equipos participantes en Turia Cup.">
 <link rel="icon" type="image/png" href="img/brand/badge-black.png">
 <link rel="stylesheet" href="css/style.css">
@@ -33,7 +33,7 @@
 <section class="section">
   <div class="container">
     <div class="page-header">
-      <h1>Clasificación y equipos</h1>
+      <h1>Clasificación y resultados</h1>
       <p>Resultados, clasificaciones, fase final y plantillas de los equipos participantes.</p>
     </div>
 
@@ -64,34 +64,38 @@
     </div>
 
     <div class="tabs" id="sectionTabs">
-      <button class="tab-btn" data-tab="clasificacion">Clasificación y resultados</button>
+      <button class="tab-btn" data-tab="clasificacion">Clasificación</button>
+      <button class="tab-btn" data-tab="resultados">Resultados</button>
+      <button class="tab-btn" data-tab="final">Fase final</button>
       <button class="tab-btn" data-tab="equipos">Equipos</button>
     </div>
 
     <div class="tab-panel" id="panelClasificacion">
-      <div id="gruposContainer"></div>
+      <div class="grupo-pills" id="grupoPills"></div>
+      <div id="grupoContainer"></div>
 
-      <h2 class="subsection-title">Próximos partidos</h2>
-      <div id="proximosContainer" class="match-list"></div>
+      <h2 class="subsection-title">Próximos partidos del grupo</h2>
+      <div id="grupoProximos" class="match-list"></div>
 
+      <h2 class="subsection-title">Resultados del grupo</h2>
+      <div id="grupoResultados" class="match-list"></div>
+    </div>
+
+    <div class="tab-panel" id="panelResultados" hidden>
       <h2 class="subsection-title">Resultados</h2>
       <div id="resultadosContainer" class="match-list"></div>
 
-      <h2 class="subsection-title">Fase final</h2>
-      <div class="phase-grid">
-        <div class="phase-block phase-oro">
-          <h3>Oro</h3>
-          <div class="match-list" id="faseOro"></div>
-        </div>
-        <div class="phase-block phase-plata">
-          <h3>Plata</h3>
-          <div class="match-list" id="fasePlata"></div>
-        </div>
-        <div class="phase-block phase-bronce">
-          <h3>Bronce</h3>
-          <div class="match-list" id="faseBronce"></div>
-        </div>
+      <h2 class="subsection-title">Próximos partidos</h2>
+      <div id="proximosContainer" class="match-list"></div>
+    </div>
+
+    <div class="tab-panel" id="panelFinal" hidden>
+      <div class="fase-tabs" id="faseTabs">
+        <button type="button" class="fase-tab" data-fase="oro">🥇 Oro</button>
+        <button type="button" class="fase-tab" data-fase="plata">🥈 Plata</button>
+        <button type="button" class="fase-tab" data-fase="bronce">🥉 Bronce</button>
       </div>
+      <div id="cuadroContainer"></div>
     </div>
 
     <div class="tab-panel" id="panelEquipos" hidden>
