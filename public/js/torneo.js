@@ -92,46 +92,6 @@ async function loadClasificacionTab() {
   }
 }
 
-// --- Clasificación por posiciones: los mejores primeros, segundos… de todos los grupos ---
-// El API devuelve la categoría entera ya ordenada (puntos, diferencia, goles a favor, nombre); dentro de cada
-// grupo ese orden es su clasificación, y entre grupos sirve para comparar equipos de la misma posición.
-const NOMBRE_POS = ['Primeros', 'Segundos', 'Terceros', 'Cuartos', 'Quintos', 'Sextos', 'Séptimos', 'Octavos'];
-
-function fasePorPosicion(pos, rank) {   // pos y rank empiezan en 1
-  if (pos <= 3 || (pos === 4 && rank === 1)) return 'oro';
-  if (pos <= 6 || (pos === 7 && rank <= 2)) return 'plata';
-  return 'bronce';
-}
-
-function clasificacionPorPosicionesHtml(filas, grupos) {
-  const porGrupo = Object.fromEntries(grupos.map((g) => [g, filas.filter((f) => f.group_name === g)]));
-  const maxPos = Math.max(...grupos.map((g) => porGrupo[g].length));
-  const dg = (n) => `${n > 0 ? '+' : ''}${n}`;
-  const NOM = { oro: '🥇 Oro', plata: '🥈 Plata', bronce: '🥉 Bronce' };
-  let html = '<p class="tg-leyenda">Se comparan los equipos que ocupan la misma posición en su grupo: puntos, diferencia de goles, goles a favor. A la derecha, la fase final a la que irían hoy.</p>';
-  for (let p = 0; p < maxPos; p++) {
-    const fila = grupos.map((g) => porGrupo[g][p]).filter(Boolean)
-      .sort((a, b) => filas.indexOf(a) - filas.indexOf(b));
-    html += `
-      <h3 class="subsection-title">${NOMBRE_POS[p] || `${p + 1}.º`} de grupo</h3>
-      <div class="tg-wrap"><table class="tg tg-pos-tabla">
-        <thead><tr><th class="tg-pos">#</th><th class="tg-eq">Equipo</th><th>Gr</th><th>PJ</th><th>DG</th><th class="tg-opc">GF</th><th class="tg-pts">Pts</th><th>Fase</th></tr></thead>
-        <tbody>${fila.map((r, i) => {
-          const fase = fasePorPosicion(p + 1, i + 1);
-          return `<tr class="tg-link" data-href="equipo.html?id=${encodeURIComponent(r.team_id)}">
-            <td class="tg-pos"><span>${i + 1}</span></td>
-            <td class="tg-eq"><div class="tg-club">${crestHtml(r.logo_url)}<a href="equipo.html?id=${encodeURIComponent(r.team_id)}">${escapeHtml(r.name)}</a></div></td>
-            <td>${escapeHtml(r.group_name)}</td><td>${r.pj}</td>
-            <td class="tg-dg ${r.dg > 0 ? 'pos' : r.dg < 0 ? 'neg' : ''}">${dg(r.dg)}</td>
-            <td class="tg-opc">${r.gf}</td><td class="tg-pts"><b>${r.pts}</b></td>
-            <td><span class="fase-chip fase-${fase}">${NOM[fase]}</span></td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table></div>`;
-  }
-  return html;
-}
-
 document.getElementById('grupoPills').addEventListener('click', (e) => {
   const b = e.target.closest('[data-grupo]');
   if (!b || b.dataset.grupo === state.grupo) return;
