@@ -15,6 +15,7 @@
   const $view = document.getElementById('appView');
   const $tabs = document.getElementById('appTabs');
   const $sheet = document.getElementById('appSheet');
+  const $banner = document.getElementById('appBanner');
 
   // ---------- Preferencias guardadas en el móvil ----------
   const leer = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -580,6 +581,26 @@
     $sheet.hidden = false;
   }
 
+  // ---------- Aviso de la organización (banner arriba, se escribe en el panel → Avisos) ----------
+  let aviso = null;
+  async function cargarAviso() {
+    try { ({ aviso } = await fetchJson('/api/aviso')); } catch { /* sin conexión: se deja el que hubiera */ }
+    pintarBanner();
+  }
+  function pintarBanner() {
+    // Quien lo cierra no lo vuelve a ver… hasta que se publica uno nuevo (otra fecha de publicación).
+    if (!aviso || leer('tc-aviso-cerrado') === aviso.publicado_at) { $banner.hidden = true; return; }
+    const d = new Date(aviso.publicado_at);
+    const horaAviso = Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    $banner.className = `app-banner ${aviso.tipo === 'urgente' ? 'urgente' : ''}`;
+    $banner.innerHTML = `<span class="a-ban-ico" aria-hidden="true">${aviso.tipo === 'urgente' ? '!' : 'i'}</span>
+      <p><b>${aviso.tipo === 'urgente' ? 'Aviso urgente' : 'Aviso de la organización'}${horaAviso ? ` · ${horaAviso}` : ''}</b>${escapeHtml(aviso.texto)}</p>
+      <button type="button" data-cerrar-aviso aria-label="Cerrar aviso">×</button>`;
+    $banner.hidden = false;
+  }
+  setInterval(() => { if (!document.hidden) cargarAviso(); }, REFRESCO_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarAviso(); });
+
   // ---------- Eventos ----------
   window.addEventListener('hashchange', () => {
     navegado = true;
@@ -634,6 +655,9 @@
       ui.grupo = d.grupo; pintar({ silencioso: true });
     } else if (d.fase) {
       history.replaceState(null, '', `#final/${d.fase}`); pintar({ silencioso: true });
+    } else if ('cerrarAviso' in d) {
+      if (aviso) escribir('tc-aviso-cerrado', aviso.publicado_at);
+      $banner.hidden = true;
     } else if ('cerrarInstalar' in d) {
       escribir('tc-instalar-visto', '1'); b.closest('.a-instalar').remove();
     } else if ('compartir' in d) {
@@ -648,6 +672,7 @@
   async function arrancar() {
     if (location.search) history.replaceState(null, '', `${location.pathname}${location.hash}`);
     pintar();
+    cargarAviso();
   }
   arrancar();
 }());

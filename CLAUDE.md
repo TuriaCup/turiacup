@@ -69,7 +69,8 @@ Worker, nunca en `wrangler.toml`; en local van en `.dev.vars` (ignorado por git)
     `group_name` o `round_name`, equipos, marcador, `played`, `scheduled_at`, `venue`).
   - **`goals`**: goles de un jugador en un partido (`count` = cuántos).
 - `schema_ajustes.sql` — tabla **`settings`** (`key`/`value`): `torneo_publico` (`'0'` = modo interno,
-  `'1'` = publicado) y `subidas_abiertas` (`'0'` = plazo cerrado para los clubes).
+  `'1'` = publicado) y `subidas_abiertas` (`'0'` = plazo cerrado para los clubes). Además, la clave `aviso`
+  guarda el banner de la app como JSON (`{ texto, tipo: 'info'|'urgente', publicado_at }`); sin fila = sin aviso.
 - `schema_compartidos.sql` — **`compartidos`** (`codigo`, `titulo`, `html`): páginas que solo se ven con el
   enlace `/c/<codigo>` (propuestas de calendario para el comité). Las sirve `worker/routes/compartidos.js`.
 - `schema_entregas.sql` — **`upload_links`** (una fila por equipo: `slug` único con el código aleatorio,
@@ -161,3 +162,7 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
   propósito el inicio de sesión. `/app?categoria=U10` abre esa categoría.
 - **`clasificacionPorPosicionesHtml` y `fasePorPosicion` viven en `utils.js`** (las usan `torneo.html` y la app).
   La regla de qué puesto va a Oro/Plata/Bronce está ahí, en un solo sitio.
+- **Aviso de la organización** (panel → Avisos): `PUT /api/admin/aviso` lo publica (texto vacío lo quita) y
+  `GET /api/aviso` lo sirve a la app, que lo consulta cada 30 s. Respeta el modo interno como las demás rutas
+  públicas. Quien lo cierra en el móvil no lo vuelve a ver hasta que se publica otro (se compara `publicado_at`),
+  así que corregir una errata también lo vuelve a enseñar a todos.

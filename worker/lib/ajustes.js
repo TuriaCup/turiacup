@@ -65,3 +65,35 @@ export async function estadoPublicacion(request, env) {
   const admin = await isAdminRequest(request, env);
   return { publicado: false, visible: admin };
 }
+
+// --- Aviso de la organización (banner en la app) ---
+// Se guarda en settings como JSON: { texto, tipo: 'info' | 'urgente', publicado_at }. Sin clave = sin aviso.
+const KEY_AVISO = 'aviso';
+export const AVISO_MAX = 280;
+export const TIPOS_AVISO = ['info', 'urgente'];
+
+export async function getAviso(env) {
+  try {
+    const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(KEY_AVISO).first();
+    if (!row) return null;
+    const aviso = JSON.parse(row.value);
+    return aviso && aviso.texto ? aviso : null;
+  } catch {
+    return null; // tabla sin crear o valor corrupto: no se muestra nada
+  }
+}
+
+/** Guarda el aviso; con `null` lo quita. */
+export async function setAviso(env, aviso) {
+  await ensureSettingsTable(env);
+  if (!aviso) {
+    await env.DB.prepare('DELETE FROM settings WHERE key = ?').bind(KEY_AVISO).run();
+    return null;
+  }
+  const valor = { texto: aviso.texto, tipo: aviso.tipo, publicado_at: new Date().toISOString() };
+  await env.DB.prepare(
+    `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+  ).bind(KEY_AVISO, JSON.stringify(valor)).run();
+  return valor;
+}

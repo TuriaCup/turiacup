@@ -284,3 +284,19 @@
 .dj-jug { min-height: 52px; }
 
 .resultado-pen span { font-size: .85rem; color: var(--text-muted); }
+
+/* Avisos de la app */
+.aviso-box textarea { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); resize: vertical; }
+.aviso-box small { color: var(--text-muted); }
+.aviso-nota { background: #fff6e5; border: 1px solid var(--accent); border-radius: var(--radius); padding: 10px 14px; color: var(--blue-900) !important; font-weight: 600; }
+.aviso-actual { margin: 20px 0; }
+.aviso-actual h3 { margin-bottom: 8px; }
+.aviso-preview { border-radius: var(--radius); padding: 12px 14px; font-weight: 600; margin-bottom: 4px; }
+.aviso-preview.info { background: #fff3e0; border: 1px solid var(--blue-500); color: var(--blue-900); }
+.aviso-preview.urgente { background: #d62828; color: #fff; }
+.aviso-tipos { display: flex; gap: 18px; margin: 4px 0 8px; }
+.aviso-tipos label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.aviso-chip { padding: 3px 10px; border-radius: 999px; font-weight: 700; font-size: .85rem; }
+.aviso-chip.info { background: #fff3e0; color: var(--blue-700); }
+.aviso-chip.urgente { background: #d62828; color: #fff; }
+.aviso-ejemplos { color: var(--text-muted); font-size: .85rem; }

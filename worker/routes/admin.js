@@ -1,6 +1,6 @@
 import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { parseRosterExcel } from '../lib/xlsx.js';
-import { isTorneoPublico, setTorneoPublico, subidasAbiertas, setSubidasAbiertas } from '../lib/ajustes.js';
+import { isTorneoPublico, setTorneoPublico, subidasAbiertas, setSubidasAbiertas, getAviso, setAviso, AVISO_MAX, TIPOS_AVISO } from '../lib/ajustes.js';
 import { ensureDirecto } from '../lib/directo.js';
 import { faltanPenaltis, propagarEliminatoria } from '../lib/eliminatorias.js';
 import { setProfesional } from '../lib/profesionales.js';
@@ -51,6 +51,23 @@ export async function handleUpdateAjustes(request, env) {
     torneo_publico: await isTorneoPublico(env),
     subidas_abiertas: await subidasAbiertas(env),
   });
+}
+
+// --- Aviso de la organización (banner de la app) ---
+
+export async function handleGetAviso(request, env) {
+  return jsonResponse({ aviso: await getAviso(env) });
+}
+
+// PUT { texto, tipo } publica o sustituye el aviso; con texto vacío lo quita.
+export async function handleUpdateAviso(request, env) {
+  const payload = await readJson(request);
+  if (!payload) return jsonResponse({ error: 'Solicitud inválida.' }, 400);
+  const texto = clean(payload.texto).replace(/\s+/g, ' ');
+  if (!texto) return jsonResponse({ ok: true, aviso: await setAviso(env, null) });
+  if (texto.length > AVISO_MAX) return jsonResponse({ error: `El aviso no puede pasar de ${AVISO_MAX} caracteres.` }, 400);
+  const tipo = TIPOS_AVISO.includes(payload.tipo) ? payload.tipo : 'info';
+  return jsonResponse({ ok: true, aviso: await setAviso(env, { texto, tipo }) });
 }
 
 // --- Entregas de plantillas (enlaces por club) ---
