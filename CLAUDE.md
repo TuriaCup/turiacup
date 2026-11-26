@@ -39,7 +39,7 @@ Base de datos: **Cloudflare D1** (`turiacup-db`, binding `DB`). Email: Resend.
   `equipo.html`, `jugador.html`, `admin.html`, más `css/`, `js/`, `img/` y
   `plantillas/plantilla-modelo.xlsx`.
 - `public/app.html` + `js/app.js` + `css/app.css` — la **app del torneo** (`/app`): una sola página con cinco
-  pestañas abajo (Inicio, Partidos, Grupos, Equipos, Más) y fichas de equipo/partido/jugador encima. Usa las
+  pestañas abajo (Inicio, Partidos, Grupos, En directo, Más; Equipos se abre desde Más) y fichas de equipo/partido/jugador encima. Usa las
   mismas APIs públicas que el resto. `manifest.webmanifest` + `img/app/` la hacen instalable («Añadir a pantalla
   de inicio»). No hay service worker a propósito: así nunca enseña resultados viejos.
 
@@ -174,3 +174,22 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **«Atrás» en la app**: cada paso se numera en `history.state.paso`. Con el paso 0, la flecha vuelve a la página de la
   web de la que se vino (o a `/`). Si reescribes la URL con `history.replaceState`, pasa `history.state` para no
   perder la numeración.
+- **Todo lo que se nombra se puede pulsar**: en la app, grupo, categoría, fase, campo, jugador y equipo son enlaces.
+  Las rutas admiten la categoría al final (`#grupos/C/U11`, `#final/oro/U10`, `#inicio//U12`) y, si es otra, la app
+  cambia de categoría sola; `#sedes/<campo>` abre el mapa con ese campo marcado. Tras aplicar el grupo o el campo
+  del hash, se quita del hash (`replaceState`) para que el refresco automático no deshaga lo que elija el usuario.
+- **Plan gratuito de Cloudflare (100.000 peticiones al Worker y 5 M de filas leídas de D1 al día)**. Se esperan
+  1.500-2.000 visitas, así que:
+  - la app pide todo en UNA petición, `GET /api/app?categoria=` (equipos + partidos + clasificación + aviso), y la
+    pestaña En directo usa `GET /api/directo` (partidos sin terminar de todas las categorías);
+  - refresca cada 30 s solo con partidos en juego y cada 2 min si no;
+  - `conCache` (`worker/index.js`) guarda 15 s en la caché del borde las respuestas públicas publicadas, así que
+    D1 se lee unas pocas veces por minuto aunque haya cientos de móviles. El admin (cookie válida) se la salta.
+    Consecuencia: tras cambiar algo, el público puede tardar hasta 15 s en verlo (y hasta 15 s en dejar de ver el
+    torneo al volver a modo interno). Los ficheros de `public/` no cuentan como peticiones.
+- **En directo** junta los partidos en juego de las cuatro categorías. En la fase
+  final, la etiqueta del partido incluye la copa («Copa Oro · Semifinal · 2»), también en `matchCardHtml` de `utils.js`.
+- **Cómo llegar**: las instalaciones están en `SEDES_TORNEO` (`public/js/miniplano.js`): nombre, `destino` (lo que se
+  busca en Google Maps para la ruta), texto de la entrada e imagen aérea. Se muestran siempre todas, primero las de la
+  categoría elegida. Un campo se asigna a su instalación por palabra clave (`detectar`: «camarena»/«resort», «cracks»,
+  «beniferri»).

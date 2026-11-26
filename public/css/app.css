@@ -242,3 +242,47 @@ body.app-body { background: var(--a-fondo); overscroll-behavior-y: none; -webkit
 .app-banner.urgente p b { color: #ffe1dc; }
 .app-banner.urgente .a-ban-ico { background: #fff; color: var(--a-vivo); font-style: normal; }
 .app-banner.urgente button { color: #ffe1dc; }
+
+/* Enlaces dentro de textos (grupo, categoría, campo, jugador…): todo lo que se nombra se puede pulsar */
+.a-stats > a { color: inherit; text-decoration: none; }
+.a-stats > a span { color: var(--a-naranja-osc); font-weight: 700; }
+.a-marc-meta a, .a-inc a { color: inherit; text-decoration: underline; text-decoration-color: rgba(198, 91, 0, .45); text-underline-offset: 3px; }
+.a-marc-meta { margin-top: 8px; }
+.a-marc-meta a { color: var(--a-naranja-osc); font-weight: 600; text-decoration: none; }
+.a-previsto a.fase-chip { text-decoration: none; }
+
+/* Pestaña En directo: contador rojo con los partidos en juego de la categoría */
+.a-tab-ico { position: relative; display: inline-grid; place-items: center; }
+.a-badge { position: absolute; top: -4px; right: -9px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--a-vivo);
+  color: #fff; font-style: normal; font-size: .62rem; font-weight: 800; line-height: 17px; text-align: center; box-shadow: 0 0 0 2px var(--a-carta); }
+.app-tabs a.hay-vivos:not([aria-current="page"]) { color: var(--a-vivo); }
+.a-sin-directo { display: flex; gap: 12px; align-items: center; padding: 16px 14px; }
+.a-sin-directo .a-tab-ico { flex: none; width: 40px; height: 40px; border-radius: 50%; background: #fdeaea; color: var(--a-vivo); }
+.a-sin-directo svg { width: 22px; height: 22px; }
+.a-sin-directo p { margin: 0; color: var(--a-gris); font-size: .88rem; }
+.a-sin-directo b { display: block; color: var(--a-negro); font-size: .95rem; }
+
+/* Fase final: qué copa es cada partido y acceso directo a los cuadros */
+.a-etapa.fase { font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.a-etapa.fase::before { content: ""; width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.a-etapa.fase-oro { color: #8a6a00; } .a-etapa.fase-oro::before { background: #e0b400; }
+.a-etapa.fase-plata { color: #4f5966; } .a-etapa.fase-plata::before { background: #9aa3ad; }
+.a-etapa.fase-bronce { color: #8a4b1c; } .a-etapa.fase-bronce::before { background: #b8733e; }
+.a-cuadros { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 12px 14px; margin-top: 12px; background: var(--a-negro); color: #fff; border-color: transparent; }
+.a-cuadros > span b { display: block; }
+.a-cuadros > span small { color: #cdbfb2; font-size: .78rem; }
+.a-cuadros > div { display: flex; gap: 6px; }
+.a-cuadros a.fase-chip { text-decoration: none; padding: 6px 12px; font-size: .82rem; }
+
+/* Cómo llegar */
+.a-sede { display: grid; }
+.a-sede-foto { position: relative; display: block; }
+.a-sede-foto img { display: block; width: 100%; height: auto; aspect-ratio: 2572 / 1600; object-fit: cover; }
+.a-sede-foto span { position: absolute; right: 10px; bottom: 10px; background: rgba(28, 19, 10, .8); color: #fff; font-size: .75rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+.a-sede-txt { padding: 14px; }
+.a-sede-txt p { margin: 0 0 8px; font-size: .9rem; }
+.a-sede-ver { display: block; text-align: center; margin-top: 10px; color: var(--a-naranja-osc); font-weight: 700; font-size: .85rem; text-decoration: none; }
+.a-sede-plano { border-top: 1px solid var(--a-linea); padding: 14px; }
+.a-sede-plano > b { display: block; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--a-gris); margin-bottom: 10px; }
+.a-sede-plano .a-chips { margin: 0 0 10px; padding: 0; flex-wrap: wrap; }
+.a-sede-plano .miniplano { margin-bottom: 0; }

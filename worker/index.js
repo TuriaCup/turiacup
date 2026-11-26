@@ -1,5 +1,5 @@
 import { jsonResponse } from './lib/http.js';
-import { requireAdmin, handleLogin, handleLogout, handleMe } from './lib/auth.js';
+import { requireAdmin, handleLogin, handleLogout, handleMe, isAdminRequest } from './lib/auth.js';
 import { handleInscripcion } from './routes/inscripcion.js';
 import {
   handleListEquipos,
@@ -9,6 +9,8 @@ import {
   handlePartidos,
   handleGetPartido,
   handleAviso,
+  handleApp,
+  handleDirecto,
 } from './routes/public.js';
 import {
   handleGetDirecto,
@@ -186,8 +188,31 @@ async function routeAdmin(request, env, pathname, method) {
   return jsonResponse({ error: 'No encontrado.' }, 404);
 }
 
+// Caché en el borde de Cloudflare para las rutas públicas: la misma respuesta se reparte durante 15 s a todos los
+// que pidan lo mismo, sin volver a leer la base de datos (plan gratuito de D1: 5 millones de filas leídas al día).
+// Solo se guarda lo publicado y nunca para el admin, que necesita ver al momento lo que acaba de cambiar.
+const CACHE_SEGUNDOS = 15;
+async function conCache(request, env, ctx, producir) {
+  if (request.method !== 'GET' || await isAdminRequest(request, env)) return producir();
+  const cache = caches.default;
+  const clave = new Request(request.url, { method: 'GET' });
+  const guardada = await cache.match(clave);
+  if (guardada) return guardada;
+  const res = await producir();
+  if (res.status === 200) {
+    const cuerpo = await res.clone().json().catch(() => null);
+    if (cuerpo && cuerpo.publicado === true) {
+      const copia = new Response(JSON.stringify(cuerpo), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${CACHE_SEGUNDOS}` },
+      });
+      ctx.waitUntil(cache.put(clave, copia));
+    }
+  }
+  return res;
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const { pathname } = url;
     const { method } = request;
@@ -195,19 +220,22 @@ export default {
     try {
       if (pathname === '/api/inscripcion' && method === 'POST') return handleInscripcion(request, env);
 
-      if (pathname === '/api/equipos' && method === 'GET') return handleListEquipos(request, env);
-      if (pathname === '/api/clasificacion' && method === 'GET') return handleClasificacion(request, env);
-      if (pathname === '/api/partidos' && method === 'GET') return handlePartidos(request, env);
-      if (pathname === '/api/aviso' && method === 'GET') return handleAviso(request, env);
+      const c = (producir) => conCache(request, env, ctx, producir);
+      if (pathname === '/api/equipos' && method === 'GET') return c(() => handleListEquipos(request, env));
+      if (pathname === '/api/clasificacion' && method === 'GET') return c(() => handleClasificacion(request, env));
+      if (pathname === '/api/partidos' && method === 'GET') return c(() => handlePartidos(request, env));
+      if (pathname === '/api/aviso' && method === 'GET') return c(() => handleAviso(request, env));
+      if (pathname === '/api/app' && method === 'GET') return c(() => handleApp(request, env));
+      if (pathname === '/api/directo' && method === 'GET') return c(() => handleDirecto(request, env));
 
       let params = matchPath('/api/equipos/:id', pathname);
-      if (params && method === 'GET') return handleGetEquipo(request, env, params.id);
+      if (params && method === 'GET') return c(() => handleGetEquipo(request, env, params.id));
 
       params = matchPath('/api/partidos/:id', pathname);
-      if (params && method === 'GET') return handleGetPartido(request, env, params.id);
+      if (params && method === 'GET') return c(() => handleGetPartido(request, env, params.id));
 
       params = matchPath('/api/jugadores/:id', pathname);
-      if (params && method === 'GET') return handleGetJugador(request, env, params.id);
+      if (params && method === 'GET') return c(() => handleGetJugador(request, env, params.id));
 
       params = matchPath('/api/plantilla/:slug', pathname);
       if (params) {

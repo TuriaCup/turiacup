@@ -6,7 +6,9 @@
 (function () {
   const CATEGORIAS = ['U9', 'U10', 'U11', 'U12'];
   const FASES = { oro: 'Copa Oro', plata: 'Copa Plata', bronce: 'Copa Bronce' };
+  // Cada refresco es 1 petición al Worker (/api/app): con partidos en juego cada 30 s, si no cada 2 min.
   const REFRESCO_MS = 30000;
+  const REFRESCO_SIN_VIVOS_MS = 120000;
   const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -34,20 +36,19 @@
   const ui = { dia: null, filtro: 'todos', grupo: null, fase: 'oro', busca: '', campos: {} };
 
   // ---------- Datos ----------
+  let aviso = null; // aviso de la organización (llega junto con los datos de la categoría)
   const cache = {};       // por categoría: { equipos, partidos, clasificacion, cargado }
   const favCache = { id: null, data: null };
   let estado = { publicado: true, visible: true };
 
   async function cargarCategoria(cat, forzar) {
     if (cache[cat] && cache[cat].cargado && !forzar) return cache[cat];
-    const c = encodeURIComponent(cat);
-    const [eq, pa, cl] = await Promise.all([
-      fetchJson(`/api/equipos?categoria=${c}`),
-      fetchJson(`/api/partidos?categoria=${c}`),
-      fetchJson(`/api/clasificacion?categoria=${c}`),
-    ]);
-    estado = { publicado: eq.publicado, visible: eq.visible };
-    cache[cat] = { equipos: eq.equipos || [], partidos: pa.partidos || [], clasificacion: cl.clasificacion || [], cargado: true };
+    // Una sola petición con todo (equipos, partidos, clasificación y aviso): ver handleApp en el Worker.
+    const d = await fetchJson(`/api/app?categoria=${encodeURIComponent(cat)}`);
+    estado = { publicado: d.publicado, visible: d.visible };
+    cache[cat] = { equipos: d.equipos || [], partidos: d.partidos || [], clasificacion: d.clasificacion || [], cargado: true };
+    aviso = d.aviso || null;
+    pintarBanner();
     if (cat === categoria) unaSede = new Set(cache[cat].partidos.map((m) => sinCampo(m.venue)).filter(Boolean)).size <= 1;
     return cache[cat];
   }
@@ -84,10 +85,20 @@
     if (Number.isNaN(f.getTime())) return clave;
     return largo ? `${DIAS[f.getDay()]} ${d} de ${MESES[m - 1]}` : `${DIAS[f.getDay()]} ${d}`;
   }
+  const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const diaLargo = (clave) => { const [y, m, d] = clave.split('-').map(Number); const f = new Date(y, m - 1, d); return Number.isNaN(f.getTime()) ? clave : `${DIAS_LARGOS[f.getDay()]} ${d}`; };
   const hoy = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const enJuego = (m) => Boolean(m.live) && !m.played;
   const porFecha = (a, b) => (a.scheduled_at || '9999').localeCompare(b.scheduled_at || '9999') || (a.venue || '').localeCompare(b.venue || '');
-  const etapa = (m) => m.round_name || (m.group_name ? `Grupo ${m.group_name}` : '') || FASES[m.phase] || '';
+  const enc = encodeURIComponent;
+  const enlaceGrupo = (cat, g) => `#grupos/${enc(g)}/${enc(cat)}`;
+  const enlaceFase = (cat, fase) => `#final/${enc(fase)}/${enc(cat)}`;
+  const enlaceCategoria = (cat) => `#inicio//${enc(cat)}`;
+  const enlaceEtapa = (m) => (FASES[m.phase] ? enlaceFase(m.category, m.phase) : m.group_name ? enlaceGrupo(m.category, m.group_name) : '');
+  const enlaceCampo = (v) => `#sedes/${enc(v)}`;
+  // En la fase final se dice siempre de qué copa es: «Copa Oro · Semifinal · 2».
+  const etapa = (m) => (FASES[m.phase] ? [FASES[m.phase], m.round_name].filter(Boolean).join(' · ')
+    : m.round_name || (m.group_name ? `Grupo ${m.group_name}` : ''));
   const sinCampo = (v) => String(v || '').replace(/\s*[·\-–,]?\s*campo\s*\d+\s*/i, ' ').trim();
   // Si toda la categoría se juega en una sola instalación, basta con «Campo 2».
   let unaSede = true;
@@ -97,6 +108,7 @@
     inicio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
     partidos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
     grupos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14h18M9 4v16"/></svg>',
+    directo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M8 8a5.6 5.6 0 0 0 0 8M16 8a5.6 5.6 0 0 1 0 8M5 5a9.9 9.9 0 0 0 0 14M19 5a9.9 9.9 0 0 1 0 14"/></svg>',
     equipos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"/></svg>',
     mas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
     estrella: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.8 2.8 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17l-5.7 3.1 1.2-6.3L2.9 9.4l6.3-.8z"/></svg>',
@@ -135,7 +147,7 @@
         <div class="a-eqs">
           ${equipo(m.home_team_id, m.home_team_name, m.home_logo, m.home_score, ganaLocal, m.home_pen)}
           ${equipo(m.away_team_id, m.away_team_name, m.away_logo, m.away_score, ganaVisit, m.away_pen)}
-          <div class="a-etapa">${escapeHtml(etapa(m))}</div>
+          <div class="a-etapa${FASES[m.phase] ? ` fase fase-${m.phase}` : ''}">${escapeHtml(etapa(m))}</div>
         </div>
       </a>`;
   }
@@ -187,7 +199,7 @@
 
   // ---------- Pantallas principales ----------
   const PESTANAS = [
-    ['inicio', 'Inicio'], ['partidos', 'Partidos'], ['grupos', 'Grupos'], ['equipos', 'Equipos'], ['mas', 'Más'],
+    ['inicio', 'Inicio'], ['partidos', 'Partidos'], ['grupos', 'Grupos'], ['directo', 'En directo'], ['mas', 'Más'],
   ];
 
   async function vistaInicio() {
@@ -229,7 +241,8 @@
     return `
       <div class="a-hero"><small>Turia Cup · ${escapeHtml(categoria)}</small><h1>${escapeHtml(titular)}</h1></div>
       ${seccion('Mi equipo')}${mi}
-      ${vivos.length ? `${seccion('En directo', '#partidos/vivo', 'Ver todos')}${lista(vivos)}` : ''}
+      ${vivos.length ? `${seccion('En directo', '#directo', 'Ver todos')}${lista(vivos)}` : ''}
+      ${accesoCuadros(d.partidos)}
       ${pendientes.length ? `${seccion('A continuación', '#partidos', 'Calendario')}${lista(pendientes.slice(0, 3))}` : ''}
       ${jugados.length ? `${seccion('Últimos resultados', '#partidos', 'Todos')}${lista(jugados.slice(0, 3))}` : ''}
       ${top.length ? `${seccion('Goleadores', '#goleadores', 'Ver tabla')}<div class="a-card">${filasGoleadores(top, d.equipos)}</div>` : ''}
@@ -238,7 +251,6 @@
 
   async function vistaPartidos(arg) {
     const d = await cargarCategoria(categoria);
-    if (arg === 'vivo') ui.filtro = 'vivo';
     const ps = [...d.partidos].sort(porFecha);
     if (!ps.length) return '<p class="a-vacio">Todavía no hay partidos en esta categoría.</p>';
     const dias = [...new Set(ps.map((m) => dia(m.scheduled_at)))];
@@ -247,25 +259,25 @@
       const conPendientes = ps.find((m) => !m.played);
       ui.dia = dias.includes(hoy()) ? hoy() : (conPendientes ? dia(conPendientes.scheduled_at) : dias[dias.length - 1]);
     }
-    const hayVivos = ps.some(enJuego);
     const campos = [...new Set(ps.filter((m) => dia(m.scheduled_at) === ui.dia).map((m) => m.venue).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
-    if (ui.filtro === 'vivo' && !hayVivos) ui.filtro = 'todos';
-    if (ui.filtro !== 'todos' && ui.filtro !== 'vivo' && !campos.includes(ui.filtro)) ui.filtro = 'todos';
+    if (ui.filtro !== 'todos' && !campos.includes(ui.filtro)) ui.filtro = 'todos';
 
-    let sel = ui.filtro === 'vivo' ? ps.filter(enJuego) : ps.filter((m) => dia(m.scheduled_at) === ui.dia);
-    if (ui.filtro !== 'todos' && ui.filtro !== 'vivo') sel = sel.filter((m) => m.venue === ui.filtro);
+    const delDia = ps.filter((m) => dia(m.scheduled_at) === ui.dia);
+    const sel = ui.filtro === 'todos' ? delDia : delDia.filter((m) => m.venue === ui.filtro);
     const horas = [...new Set(sel.map((m) => hora(m.scheduled_at)))];
-    const chips = [['todos', 'Todos'], ...(hayVivos ? [['vivo', '● En juego']] : []), ...campos.map((c) => [c, campoCorto(c)])];
+    const chips = [['todos', 'Todos'], ...campos.map((c) => [c, campoCorto(c)])];
 
     return `
-      ${ui.filtro === 'vivo' ? '' : `<div class="a-dias">${dias.map((k) => `<button type="button" data-dia="${k}" aria-pressed="${k === ui.dia}">${escapeHtml(nombreDia(k))}</button>`).join('')}</div>`}
-      <div class="a-chips">${chips.map(([k, t]) => `<button type="button" class="a-chip${k === 'vivo' ? ' vivo' : ''}" data-filtro="${escapeHtml(k)}" aria-pressed="${k === ui.filtro}">${escapeHtml(t)}</button>`).join('')}</div>
-      ${horas.length ? horas.map((h) => `<h3 class="a-hora">${h || 'Hora por confirmar'}</h3>${lista(sel.filter((m) => hora(m.scheduled_at) === h), fav && fav.id, '', ui.filtro !== 'vivo')}`).join('')
+      <div class="a-dias">${dias.map((k) => `<button type="button" data-dia="${k}" aria-pressed="${k === ui.dia}">${escapeHtml(nombreDia(k))}</button>`).join('')}</div>
+      ${campos.length > 1 ? `<div class="a-chips">${chips.map(([k, t]) => `<button type="button" class="a-chip" data-filtro="${escapeHtml(k)}" aria-pressed="${k === ui.filtro}">${escapeHtml(t)}</button>`).join('')}</div>` : ''}
+      ${accesoCuadros(delDia, ui.dia)}
+      ${horas.length ? horas.map((h) => `<h3 class="a-hora">${h || 'Hora por confirmar'}</h3>${lista(sel.filter((m) => hora(m.scheduled_at) === h), fav && fav.id, '', true)}`).join('')
         : '<p class="a-vacio">No hay partidos con este filtro.</p>'}`;
   }
 
-  async function vistaGrupos() {
+  async function vistaGrupos(arg) {
     const d = await cargarCategoria(categoria);
+    if (arg) { ui.grupo = arg; history.replaceState(history.state, '', '#grupos'); }
     const grupos = [...new Set(d.equipos.map((e) => e.group_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
     if (!grupos.length) return '<p class="a-vacio">Todavía no hay grupos asignados en esta categoría.</p>';
     if (!ui.grupo || (ui.grupo !== 'POS' && !grupos.includes(ui.grupo))) {
@@ -274,16 +286,16 @@
     }
     const chips = `<div class="a-chips a-chips-grupo">${grupos.map((g) => `<button type="button" class="a-chip" data-grupo="${escapeHtml(g)}" aria-pressed="${g === ui.grupo}">Grupo ${escapeHtml(g)}</button>`).join('')}
       ${grupos.length > 1 ? `<button type="button" class="a-chip" data-grupo="POS" aria-pressed="${ui.grupo === 'POS'}">Por posiciones</button>` : ''}</div>`;
-    if (ui.grupo === 'POS') return `${chips}<div class="a-posiciones">${clasificacionPorPosicionesHtml(d.clasificacion, grupos)}</div>`;
+    if (ui.grupo === 'POS') return `${chips}${accesoCuadros(d.partidos)}<div class="a-posiciones">${clasificacionPorPosicionesHtml(d.clasificacion, grupos)}</div>`;
 
     const filas = d.clasificacion.filter((r) => r.group_name === ui.grupo);
     const fases = fasesPrevistas(d.clasificacion);
     const partidos = d.partidos.filter((m) => m.phase === 'grupos' && m.group_name === ui.grupo).sort(porFecha);
     const previstas = filas.map((r) => fases.get(Number(r.team_id)));
-    return `${chips}
+    return `${chips}${accesoCuadros(d.partidos)}
       <div class="a-tabla">${tablaGrupoHtml(filas, { enlaces: true, miId: fav && fav.id })}</div>
       ${grupos.length > 1 && filas.some((r) => r.pj > 0) ? `<div class="a-card a-previsto"><b>Si el grupo acabara ahora</b>
-        ${filas.map((r, i) => `<div><span>${i + 1}.º ${escapeHtml(r.name)}</span><span class="fase-chip fase-${previstas[i]}">${FASES[previstas[i]]}</span></div>`).join('')}</div>` : ''}
+        ${filas.map((r, i) => `<div><span>${i + 1}.º ${escapeHtml(r.name)}</span><a class="fase-chip fase-${previstas[i]}" href="${enlaceFase(categoria, previstas[i])}">${FASES[previstas[i]]}</a></div>`).join('')}</div>` : ''}
       ${seccion('Partidos del grupo')}${lista(partidos, fav && fav.id)}`;
   }
 
@@ -299,16 +311,48 @@
     if (!sel.length) return '<p class="a-vacio">Ningún club coincide con la búsqueda.</p>';
     const grupos = [...new Set(sel.map((e) => e.group_name || ''))];
     return grupos.map((g) => `
-      ${seccion(g ? `Grupo ${g}` : 'Sin grupo')}
+      ${g ? seccion(`Grupo ${g}`, enlaceGrupo(categoria, g), 'Clasificación') : seccion('Sin grupo')}
       <div class="a-card">${sel.filter((e) => (e.group_name || '') === g).map((e) => `
         <div class="a-equipo"><a href="#equipo/${e.id}">${crestHtml(e.logo_url)}<span><b>${escapeHtml(e.name)}</b>${e.city ? `<small>${escapeHtml(e.city)}</small>` : ''}</span></a>
           ${estrellaBtn(e.id, e.category)}</div>`).join('')}</div>`).join('');
+  }
+
+  // Acceso a los cuadros de la fase final que tengan partidos en esta lista (p. ej. el último día).
+  function accesoCuadros(partidos, diaElegido) {
+    const fases = Object.keys(FASES).filter((f) => partidos.some((m) => m.phase === f));
+    if (!fases.length) return '';
+    return `<div class="a-card a-cuadros"><span><b>${!diaElegido ? 'Fase final' : diaElegido === hoy() ? 'Hoy se juega la fase final' : `El ${diaLargo(diaElegido)} se juega la fase final`}</b><small>Mira cómo van los cruces</small></span>
+      <div>${fases.map((f) => `<a class="fase-chip fase-${f}" href="${enlaceFase(categoria, f)}">${FASES[f].replace('Copa ', '')}</a>`).join('')}</div></div>`;
+  }
+
+  let directoConVivos = false;
+  // En directo: los partidos en juego de TODAS las categorías (la elegida, primero).
+  async function vistaDirecto() {
+    const orden = [categoria, ...CATEGORIAS.filter((c) => c !== categoria)];
+    const { partidos: pendientesTodos = [] } = await fetchJson('/api/directo'); // sin terminar, todas las categorías
+    const porCat = orden.map((c) => ({ c, ps: pendientesTodos.filter((m) => m.category === c).sort(porFecha) }));
+    const conVivos = porCat.filter((x) => x.ps.some(enJuego));
+    directoConVivos = conVivos.length > 0;
+    if (conVivos.length) {
+      return `${conVivos.map((x) => `${seccion(x.c, enlaceCategoria(x.c), 'Ir a la categoría')}${lista(x.ps.filter(enJuego), fav && fav.id)}`).join('')}
+        <p class="a-nota">Los marcadores se actualizan solos cada 30 segundos.</p>`;
+    }
+    // Nada en juego: los siguientes en empezar de cada categoría.
+    const proximos = porCat.map((x) => {
+      const pend = x.ps.filter((m) => !m.played && m.scheduled_at);
+      const primera = pend.length ? pend[0].scheduled_at : null;
+      return { c: x.c, ps: pend.filter((m) => m.scheduled_at === primera) };
+    }).filter((x) => x.ps.length);
+    return `<div class="a-card a-sin-directo"><span class="a-tab-ico">${ICO.directo}</span><p><b>Ahora mismo no hay partidos en juego</b>
+        En cuanto empiece uno, saldrá aquí con su marcador.</p></div>
+      ${proximos.map((x) => `${seccion(`${x.c} · próximos en empezar`, enlaceCategoria(x.c), 'Ir a la categoría')}${lista(x.ps, fav && fav.id)}`).join('')}`;
   }
 
   async function vistaMas() {
     const item = (href, ico, titulo, sub, externo) => `<a href="${href}"${externo ? ' target="_blank" rel="noopener"' : ''}><span class="a-mico">${ico}</span>
       <span class="a-mtxt"><b>${titulo}</b><small>${sub}</small></span>${ICO.flecha}</a>`;
     return `<div class="a-card a-menu">
+        ${item('#equipos', ICO.equipos, 'Equipos', `Todos los clubes de ${escapeHtml(categoria)} y sus plantillas`)}
         ${item('#final', ICO.copa, 'Fase final', 'Cuadros de Copa Oro, Plata y Bronce')}
         ${item('#goleadores', ICO.balon, 'Goleadores', `Máximos goleadores de ${escapeHtml(categoria)}`)}
         ${item('#sedes', ICO.mapa, 'Cómo llegar', 'Campos y mapa de cada instalación')}
@@ -358,18 +402,18 @@
       html: `
         <div class="a-ficha-cab">${e.logo_url ? `<img src="${escapeHtml(e.logo_url)}" alt="">` : '<span class="crest crest-vacio"></span>'}
           <h1>${escapeHtml(e.name)}</h1>
-          <p>${[e.category, e.group_name ? `Grupo ${e.group_name}` : '', e.city].filter(Boolean).map(escapeHtml).join(' · ')}</p>
+          <p><a href="${enlaceCategoria(e.category)}">${escapeHtml(e.category)}</a>${e.group_name ? ` · <a href="${enlaceGrupo(e.category, e.group_name)}">Grupo ${escapeHtml(e.group_name)}</a>` : ''}${e.city ? ` · ${escapeHtml(e.city)}` : ''}</p>
           ${estrellaBtn(e.id, e.category, true)}
         </div>
         ${clas ? `<div class="a-card a-stats">
-          <div><b>${clas.pos}.º</b><span>Grupo</span></div><div><b>${clas.fila.pts}</b><span>Puntos</span></div>
+          <a href="${enlaceGrupo(e.category, e.group_name)}"><b>${clas.pos}.º</b><span>Grupo ${escapeHtml(e.group_name)}</span></a><div><b>${clas.fila.pts}</b><span>Puntos</span></div>
           <div><b>${clas.fila.pg}-${clas.fila.pe}-${clas.fila.pp}</b><span>G-E-P</span></div>
           <div><b>${clas.fila.gf}:${clas.fila.gc}</b><span>Goles</span></div></div>` : ''}
-        ${fasePropia ? `<a class="a-boton a-boton-ancho" href="#final/${fasePropia.phase}">Ver su cuadro de ${FASES[fasePropia.phase]}</a>` : ''}
+        ${fasePropia ? `<a class="a-boton a-boton-ancho" href="${enlaceFase(e.category, fasePropia.phase)}">Ver su cuadro de ${FASES[fasePropia.phase]}</a>` : ''}
         ${proximos.length ? `${seccion('Próximos partidos')}${lista(proximos, e.id)}` : ''}
         ${jugados.length ? `${seccion('Resultados')}${lista(jugados, e.id)}` : ''}
         ${!todos.length ? `${seccion('Partidos')}<p class="a-vacio">Todavía no tiene partidos programados.</p>` : ''}
-        ${clas ? `${seccion(`Grupo ${e.group_name}`)}<div class="a-tabla">${tablaGrupoHtml(clas.filas, { enlaces: true, miId: e.id })}</div>` : ''}
+        ${clas ? `${seccion(`Grupo ${e.group_name}`, enlaceGrupo(e.category, e.group_name), 'Ver grupo')}<div class="a-tabla">${tablaGrupoHtml(clas.filas, { enlaces: true, miId: e.id })}</div>` : ''}
         ${seccion('Plantilla')}
         ${jugadores.length ? `<div class="a-card">${jugadores.map((j) => `
           <a class="a-jugador" href="#jugador/${j.id}"><span class="a-dorsal">${j.dorsal ?? ''}</span><span>${escapeHtml(j.nombre)} ${escapeHtml(j.apellidos)}</span>${ICO.flecha}</a>`).join('')}</div>`
@@ -402,14 +446,19 @@
               ${pen ? `<small>Penaltis ${m.home_pen} - ${m.away_pen}</small>` : ''}</div>
             ${lado(m.away_team_id, m.away_team_name, m.away_logo)}</div>
           <div class="a-marc-estado">${estadoTxt}</div>
-          ${live || m.played ? '' : `<div class="a-marc-meta">${escapeHtml([etapa(m), m.venue].filter(Boolean).join(' · '))}</div>`}
+          <div class="a-marc-meta">${[
+            `<a href="${enlaceCategoria(m.category)}">${escapeHtml(m.category)}</a>`,
+            etapa(m) ? (enlaceEtapa(m) ? `<a href="${enlaceEtapa(m)}">${escapeHtml(etapa(m))}</a>` : escapeHtml(etapa(m))) : '',
+            m.venue ? `<a href="${enlaceCampo(m.venue)}">${escapeHtml(campoCorto(m.venue))}</a>` : '',
+          ].filter(Boolean).join(' · ')}</div>
         </div>
         ${(m.played || live) && goles.length ? `${seccion('Goles')}<div class="a-card a-goles2"><div>${columna(m.home_team_id)}</div><div>${columna(m.away_team_id)}</div></div>` : ''}
         ${(incidencias || []).length ? `${seccion('Incidencias')}<div class="a-card">${incidencias.map((e) => `
-          <div class="a-inc"><i class="a-inc-${e.type}"></i><span>${TEXTO_INC[e.type] || ''} · ${escapeHtml(e.nombre)} ${escapeHtml(e.apellidos)}</span>
-          <small>${escapeHtml(Number(e.team_id) === Number(m.home_team_id) ? m.home_team_name : m.away_team_name)}</small></div>`).join('')}</div>` : ''}
+          <div class="a-inc"><i class="a-inc-${e.type}"></i><span>${TEXTO_INC[e.type] || ''} · <a href="#jugador/${e.player_id}">${escapeHtml(e.nombre)} ${escapeHtml(e.apellidos)}</a></span>
+          <small><a href="#equipo/${e.team_id}">${escapeHtml(Number(e.team_id) === Number(m.home_team_id) ? m.home_team_name : m.away_team_name)}</a></small></div>`).join('')}</div>` : ''}
         ${m.venue ? `${seccion('Dónde se juega')}<div class="a-card a-plano">${miniPlanoHtml(m.venue) || `<p>${escapeHtml(m.venue)}</p>`}
-          <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${sinCampo(m.venue)} Valencia`)}">Abrir en Google Maps</a></div>` : ''}
+          <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="${rutaMaps(sedeDe(m.venue).destino)}">Cómo llegar a ${escapeHtml(sedeDe(m.venue).nombre)}</a>
+          <a class="a-sede-ver" href="${enlaceCampo(m.venue)}">Ver la instalación: parking, entrada y campos</a></div>` : ''}
         ${live ? '<p class="a-nota">El marcador se actualiza solo.</p>' : ''}`,
     };
   }
@@ -424,7 +473,7 @@
       html: `
         <div class="a-ficha-cab"><span class="a-dorsal-grande">${j.dorsal ?? '–'}</span>
           <h1>${escapeHtml(j.nombre)} ${escapeHtml(j.apellidos)}</h1>
-          <p><a href="#equipo/${j.team_id}">${escapeHtml(j.team_name)}</a> · ${escapeHtml(j.category)}</p></div>
+          <p><a href="#equipo/${j.team_id}">${escapeHtml(j.team_name)}</a> · <a href="${enlaceCategoria(j.category)}">${escapeHtml(j.category)}</a></p></div>
         <div class="a-card a-stats a-stats-1"><div><b>${totalGoles}</b><span>${totalGoles === 1 ? 'Gol' : 'Goles'}</span></div></div>
         ${goles.length ? `${seccion('Partidos en los que marcó')}<div class="a-card">${goles.map((g) => `
           <a class="a-jugador" href="#partido/${g.match_id}"><span class="a-dorsal">${g.count}</span>
@@ -453,27 +502,50 @@
     };
   }
 
-  async function fichaSedes() {
+  // Cómo llegar: todas las instalaciones del torneo (miniplano.js → SEDES_TORNEO), primero las de la categoría elegida.
+  // Para cada una: mapa aéreo si lo hay, por dónde se entra, botón de ruta en Google Maps y el plano de los campos.
+  const rutaMaps = (destino) => `https://www.google.com/maps/dir/?api=1&destination=${enc(destino)}`;
+  const buscarMaps = (destino) => `https://www.google.com/maps/search/?api=1&query=${enc(destino)}`;
+  function sedeDe(venue) {
+    const clave = window.sedeDeCampo ? sedeDeCampo(venue) : null;
+    const conocida = clave && (window.SEDES_TORNEO || []).find((s) => s.clave === clave);
+    if (conocida) return conocida;
+    const nombre = sinCampo(venue) || venue;
+    return { clave: nombre, nombre, destino: `${nombre}, Valencia` };
+  }
+
+  async function fichaSedes(campoPedido) {
     const d = await cargarCategoria(categoria);
+    if (campoPedido) ui.campos[sedeDe(campoPedido).clave] = campoPedido;
     const campos = [...new Set(d.partidos.map((m) => m.venue).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
-    const sedes = [...new Set(campos.map(sinCampo))].sort((a, b) => a.localeCompare(b, 'es'));
-    if (!sedes.length) return { titulo: 'Cómo llegar', sub: categoria, html: '<p class="a-vacio">Los campos se publicarán junto con el calendario.</p>' };
+    const sedes = [...(window.SEDES_TORNEO || [])];
+    for (const c of campos) { const s = sedeDe(c); if (!sedes.some((x) => x.clave === s.clave)) sedes.push(s); }
+    const usadas = new Set(campos.map((c) => sedeDe(c).clave));
+    sedes.sort((x, y) => Number(usadas.has(y.clave)) - Number(usadas.has(x.clave)));
     return {
-      titulo: 'Cómo llegar', sub: categoria,
+      titulo: 'Cómo llegar', sub: 'Instalaciones del torneo',
       html: sedes.map((s) => {
-        const suyos = campos.filter((c) => sinCampo(c) === s);
-        const elegido = suyos.includes(ui.campos[s]) ? ui.campos[s] : suyos[0];
-        const plano = miniPlanoHtml(elegido);
-        return `${seccion(s)}<div class="a-card a-plano">
-          ${suyos.length > 1 ? `<div class="a-chips">${suyos.map((c) => `<button type="button" class="a-chip" data-sede="${escapeHtml(s)}" data-campo="${escapeHtml(c)}" aria-pressed="${c === elegido}">${escapeHtml(c.replace(s, '').replace(/^[\s·\-–,]+/, '') || c)}</button>`).join('')}</div>` : ''}
-          ${plano}
-          <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s} Valencia`)}">Abrir en Google Maps</a></div>`;
+        const suyos = campos.filter((c) => sedeDe(c).clave === s.clave);
+        const elegido = suyos.includes(ui.campos[s.clave]) ? ui.campos[s.clave] : suyos[0];
+        const plano = elegido ? miniPlanoHtml(elegido) : '';
+        return `${seccion(s.nombre)}<div class="a-card a-sede">
+          ${s.imagen ? `<a class="a-sede-foto" href="${escapeHtml(s.imagenGrande || s.imagen)}" target="_blank" rel="noopener"><img src="${escapeHtml(s.imagen)}" alt="Vista aérea de ${escapeHtml(s.nombre)} con los campos, el parking y la entrada" loading="lazy"><span>Ampliar</span></a>` : ''}
+          <div class="a-sede-txt">
+            ${s.entrada ? `<p>${escapeHtml(s.entrada)}</p>` : ''}
+            ${usadas.has(s.clave) ? '' : `<p class="a-gris">En ${escapeHtml(categoria)} no hay partidos en esta instalación.</p>`}
+            <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="${rutaMaps(s.destino)}">Cómo llegar</a>
+            <a class="a-sede-ver" target="_blank" rel="noopener" href="${buscarMaps(s.destino)}">Ver en Google Maps</a>
+          </div>
+          ${plano ? `<div class="a-sede-plano"><b>Dentro de la instalación</b>
+            ${suyos.length > 1 ? `<div class="a-chips">${suyos.map((c) => `<button type="button" class="a-chip" data-sede="${escapeHtml(s.clave)}" data-campo="${escapeHtml(c)}" aria-pressed="${c === elegido}">${escapeHtml(campoCorto(c))}</button>`).join('')}</div>` : ''}
+            ${plano}</div>` : ''}
+        </div>`;
       }).join(''),
     };
   }
 
   const FICHAS = { equipo: fichaEquipo, partido: fichaPartido, jugador: fichaJugador, goleadores: fichaGoleadores, final: fichaFinal, sedes: fichaSedes };
-  const VISTAS = { inicio: vistaInicio, partidos: vistaPartidos, grupos: vistaGrupos, equipos: vistaEquipos, mas: vistaMas };
+  const VISTAS = { inicio: vistaInicio, partidos: vistaPartidos, grupos: vistaGrupos, directo: vistaDirecto, equipos: vistaEquipos, mas: vistaMas };
 
   // ---------- Navegación ----------
   let ultimaPestana = 'inicio';
@@ -494,14 +566,22 @@
   let saltoSinPaso = false; // un location.replace no es un paso nuevo
 
   function ruta() {
-    const [nombre, arg] = location.hash.replace(/^#/, '').split('/');
-    if (VISTAS[nombre]) return { tipo: 'vista', nombre, arg };
-    if (FICHAS[nombre]) return { tipo: 'ficha', nombre, arg };
+    const [nombre, a, c] = location.hash.replace(/^#/, '').split('/');
+    const dec = (x) => { try { return decodeURIComponent(x || ''); } catch { return ''; } };
+    const arg = dec(a);
+    const cat = CATEGORIAS.includes(dec(c).toUpperCase()) ? dec(c).toUpperCase() : null;
+    if (VISTAS[nombre]) return { tipo: 'vista', nombre, arg, cat };
+    if (FICHAS[nombre]) return { tipo: 'ficha', nombre, arg, cat };
     return { tipo: 'vista', nombre: 'inicio' };
   }
 
+  // Equipos ya no tiene pestaña propia: se abre desde Más, así que ilumina Más.
   function pintarTabs(activa) {
-    $tabs.innerHTML = PESTANAS.map(([k, t]) => `<a href="#${k}" ${k === activa ? 'aria-current="page"' : ''}>${ICO[k]}<span>${t}</span></a>`).join('');
+    const marcada = activa === 'equipos' ? 'mas' : activa;
+    const d = cache[categoria];
+    const vivos = d ? d.partidos.filter(enJuego).length : 0;
+    $tabs.innerHTML = PESTANAS.map(([k, t]) => `<a href="#${k}" ${k === marcada ? 'aria-current="page"' : ''}${k === 'directo' && vivos ? ' class="hay-vivos"' : ''}>
+      <span class="a-tab-ico">${ICO[k]}${k === 'directo' && vivos ? `<i class="a-badge">${vivos}</i>` : ''}</span><span>${t}</span></a>`).join('');
   }
 
   function pintarCabecera(r, ficha) {
@@ -521,6 +601,7 @@
     const turno = ++pintando;
     const scroll = $view.scrollTop;
     clearTimeout(temporizador);
+    if (r.cat && r.cat !== categoria) cambiarCategoria(r.cat); // un enlace a otra categoría (p. ej. un grupo)
     if (r.tipo === 'vista') ultimaPestana = r.nombre;
     pintarTabs(ultimaPestana);
     if (!opciones.silencioso) {
@@ -553,6 +634,7 @@
     $aviso.hidden = estado.publicado;
     $aviso.textContent = 'Vista interna: el torneo todavía no es público. Lo ves porque tienes abierta la sesión de administrador.';
     pintarCabecera(r, ficha);
+    pintarTabs(ultimaPestana); // ya con datos: contador de partidos en juego
     $view.innerHTML = html;
     $view.scrollTop = opciones.silencioso ? scroll : 0;
     if (ficha && ficha.despues) ficha.despues();
@@ -564,12 +646,14 @@
   function programarRefresco(r, ficha) {
     const toca = r.tipo === 'vista' ? r.nombre !== 'mas' : Boolean(ficha && ficha.refrescar);
     if (!toca) return;
+    const d = cache[categoria];
+    const hayVivos = (d && d.partidos.some(enJuego)) || (ficha && ficha.refrescar) || (r.nombre === 'directo' && directoConVivos);
     temporizador = setTimeout(async () => {
       if (document.hidden) { programarRefresco(r, ficha); return; }
       if (document.activeElement && document.activeElement.id === 'aBusca') { programarRefresco(r, ficha); return; }
       try { await Promise.all([cargarCategoria(categoria, true), cargarFav(true)]); } catch { /* se reintenta en el siguiente */ }
       pintar({ silencioso: true });
-    }, r.tipo === 'ficha' ? 20000 : REFRESCO_MS);
+    }, hayVivos ? REFRESCO_MS : REFRESCO_SIN_VIVOS_MS);
   }
   document.addEventListener('visibilitychange', async () => {
     if (document.hidden) return;
@@ -588,6 +672,12 @@
     });
   }
 
+  function cambiarCategoria(c) {
+    categoria = c;
+    escribir('tc-cat', categoria);
+    ui.grupo = null; ui.dia = null; ui.filtro = 'todos'; ui.busca = '';
+  }
+
   function elegirCategoria() {
     $sheet.innerHTML = `<div class="a-sheet" role="dialog" aria-label="Elegir categoría"><div class="a-asa"></div><h2>Categoría</h2>
       <div class="a-cats">${CATEGORIAS.map((c) => `<button type="button" data-set-cat="${c}" aria-pressed="${c === categoria}">${c}</button>`).join('')}</div></div>`;
@@ -595,11 +685,6 @@
   }
 
   // ---------- Aviso de la organización (banner arriba, se escribe en el panel → Avisos) ----------
-  let aviso = null;
-  async function cargarAviso() {
-    try { ({ aviso } = await fetchJson('/api/aviso')); } catch { /* sin conexión: se deja el que hubiera */ }
-    pintarBanner();
-  }
   function pintarBanner() {
     // Quien lo cierra no lo vuelve a ver… hasta que se publica uno nuevo (otra fecha de publicación).
     if (!aviso || leer('tc-aviso-cerrado') === aviso.publicado_at) { $banner.hidden = true; return; }
@@ -611,8 +696,6 @@
       <button type="button" data-cerrar-aviso aria-label="Cerrar aviso">×</button>`;
     $banner.hidden = false;
   }
-  setInterval(() => { if (!document.hidden) cargarAviso(); }, REFRESCO_MS);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarAviso(); });
 
   // ---------- Eventos ----------
   window.addEventListener('hashchange', () => {
@@ -649,9 +732,7 @@
     } else if ('elegirCat' in d) {
       elegirCategoria();
     } else if (d.setCat) {
-      categoria = d.setCat;
-      escribir('tc-cat', categoria);
-      ui.grupo = null; ui.dia = null; ui.filtro = 'todos'; ui.busca = '';
+      cambiarCategoria(d.setCat);
       $sheet.hidden = true;
       pintar();
     } else if ('atras' in d) {
@@ -660,12 +741,11 @@
       else if (vieneDeLaWeb) history.back();
       else location.href = '/';
     } else if (d.campo) {
-      ui.campos[d.sede] = d.campo; pintar({ silencioso: true });
+      ui.campos[d.sede] = d.campo; history.replaceState(history.state, '', '#sedes'); pintar({ silencioso: true });
     } else if (d.dia) {
       ui.dia = d.dia; pintar({ silencioso: true });
     } else if (d.filtro) {
       ui.filtro = d.filtro;
-      if (ruta().arg === 'vivo') history.replaceState(history.state, '', '#partidos');
       pintar({ silencioso: true });
     } else if (d.grupo) {
       ui.grupo = d.grupo; pintar({ silencioso: true });
@@ -688,7 +768,6 @@
   async function arrancar() {
     if (location.search) history.replaceState(history.state, '', `${location.pathname}${location.hash}`);
     pintar();
-    cargarAviso();
   }
   arrancar();
 }());

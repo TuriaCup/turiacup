@@ -98,7 +98,7 @@ async function load() {
         <div>
           <h1>${escapeHtml(equipo.name)}</h1>
           <div class="entity-meta">
-            ${escapeHtml(equipo.category)}${equipo.group_name ? ` · Grupo ${escapeHtml(equipo.group_name)}` : ''}${equipo.city ? ` · ${escapeHtml(equipo.city)}` : ''}
+            <a href="torneo.html?categoria=${encodeURIComponent(equipo.category)}">${escapeHtml(equipo.category)}</a>${equipo.group_name ? ` · <a href="torneo.html?categoria=${encodeURIComponent(equipo.category)}&tab=clasificacion&grupo=${encodeURIComponent(equipo.group_name)}">Grupo ${escapeHtml(equipo.group_name)}</a>` : ''}${equipo.city ? ` · ${escapeHtml(equipo.city)}` : ''}
           </div>
         </div>
       </div>

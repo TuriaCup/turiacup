@@ -280,3 +280,42 @@ export async function handleAviso(request, env) {
   if (!visible) return jsonResponse({ publicado, visible, aviso: null });
   return jsonResponse({ publicado, visible, aviso: await getAviso(env) });
 }
+
+// Todo lo que la app necesita de una categoría en UNA petición (equipos, partidos, clasificación y aviso).
+// Así cada refresco de la app cuenta como una sola petición al Worker (plan gratuito: 100.000 al día).
+export async function handleApp(request, env) {
+  const [eq, pa, cl] = await Promise.all([
+    handleListEquipos(request, env).then((r) => r.json()),
+    handlePartidos(request, env).then((r) => r.json()),
+    handleClasificacion(request, env).then((r) => r.json()),
+  ]);
+  if (pa.error || cl.error) return jsonResponse({ error: pa.error || cl.error }, 400);
+  const aviso = eq.visible ? await getAviso(env) : null;
+  return jsonResponse({
+    publicado: eq.publicado, visible: eq.visible,
+    equipos: eq.equipos || [], partidos: pa.partidos || [], clasificacion: cl.clasificacion || [], aviso,
+  });
+}
+
+// Pestaña «En directo»: partidos sin terminar de TODAS las categorías (los en juego y los pendientes),
+// en una sola consulta. La app se queda con los en juego y, si no hay, con los siguientes de cada categoría.
+export async function handleDirecto(request, env) {
+  const { publicado, visible } = await estadoPublicacion(request, env);
+  if (!visible) return jsonResponse({ publicado, visible, partidos: [] });
+  await ensureDirecto(env);
+  const { results: partidos } = await env.DB.prepare(
+    `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
+            m.home_score, m.away_score, m.home_pen, m.away_pen, m.played, m.scheduled_at, m.venue,
+            COALESCE(ht.name, m.home_label, 'Por definir') AS home_team_name,
+            COALESCE(at.name, m.away_label, 'Por definir') AS away_team_name,
+            ht.logo_url AS home_logo, at.logo_url AS away_logo,
+            ml.match_id IS NOT NULL AS live
+     FROM matches m
+     LEFT JOIN teams ht ON ht.id = m.home_team_id
+     LEFT JOIN teams at ON at.id = m.away_team_id
+     LEFT JOIN match_live ml ON ml.match_id = m.id
+     WHERE m.played = 0
+     ORDER BY m.scheduled_at IS NULL, m.scheduled_at`
+  ).all();
+  return jsonResponse({ publicado, visible, partidos });
+}
