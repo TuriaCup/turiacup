@@ -182,7 +182,9 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
   1.500-2.000 visitas, así que:
   - la app pide todo en UNA petición, `GET /api/app?categoria=` (equipos + partidos + clasificación + aviso), y la
     pestaña En directo usa `GET /api/directo` (partidos sin terminar de todas las categorías);
-  - refresca cada 30 s solo con partidos en juego y cada 2 min si no;
+  - refresca cada 30 s solo con partidos en juego y cada 2 min si no; además, al cambiar de pantalla vuelve a pedir
+    los datos si tienen más de 20 s (`FRESCO_MS`), al volver a la app (visibilitychange/pageshow/focus) y al pulsar
+    la pestaña en la que ya se está. Las peticiones de la app van con `cache: 'no-store'` (`pedir` en `app.js`);
   - `conCache` (`worker/index.js`) guarda 15 s en la caché del borde las respuestas públicas publicadas, así que
     D1 se lee unas pocas veces por minuto aunque haya cientos de móviles. El admin (cookie válida) se la salta.
     Consecuencia: tras cambiar algo, el público puede tardar hasta 15 s en verlo (y hasta 15 s en dejar de ver el

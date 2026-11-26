@@ -19,14 +19,10 @@ body.app-body { background: var(--a-fondo); overscroll-behavior-y: none; -webkit
    · En Safari: height: 100% (lo que se ve entre la barra de arriba y la barra flotante de Safari). Con position: fixed
      el menú quedaba DEBAJO de la barra flotante de Safari (iOS 26) y se veía cortado.
    · Instalada en la pantalla de inicio (clase .instalada en <html>, la pone app.html): no hay barras de Safari,
-     pero el 100% no cuenta la barra de estado translúcida y dejaba un hueco bajo el menú; ahí se fija a los bordes,
-     y en el iPhone (.instalada-ios) se le da el alto real de la pantalla. */
+     se fija a los bordes. La barra de estado del iPhone es opaca (app.html): con la translúcida, iOS medía mal el alto
+     de la app instalada (hueco bajo el menú o menú cortado) y ningún ajuste de CSS lo arreglaba de forma fiable. */
 .app { height: 100%; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; background: var(--a-fondo); position: relative; }
 html.instalada .app { position: fixed; inset: 0; height: auto; }
-/* iPhone instalado: el alto que da el navegador se queda corto (le falta la barra de estado), así que se usa el
-   alto real de la pantalla, que calcula app.html en --alto-app. El fondo blanco tapa cualquier resto bajo el menú. */
-html.instalada-ios .app { inset: 0 0 auto 0; height: var(--alto-app, 100vh); }
-html.instalada-ios, html.instalada-ios body.app-body { background: var(--a-carta); }
 @media (min-width: 600px) { .app { border-left: 1px solid var(--a-linea); border-right: 1px solid var(--a-linea); } }
 
 /* Cabecera */

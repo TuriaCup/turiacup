@@ -37,16 +37,21 @@
 
   // ---------- Datos ----------
   let aviso = null; // aviso de la organización (llega junto con los datos de la categoría)
-  const cache = {};       // por categoría: { equipos, partidos, clasificacion, cargado }
-  const favCache = { id: null, data: null };
+  // Las peticiones de la app nunca usan la caché del navegador (iOS podía enseñar un resultado ya corregido).
+  const pedir = (url) => fetchJson(url, { cache: 'no-store' });
+  // Los datos guardados en memoria valen 20 s: al cambiar de pantalla, si son más viejos, se vuelven a pedir.
+  const FRESCO_MS = 20000;
+  const fresco = (t) => t && Date.now() - t < FRESCO_MS;
+  const cache = {};       // por categoría: { equipos, partidos, clasificacion, cargado, t }
+  const favCache = { id: null, data: null, t: 0 };
   let estado = { publicado: true, visible: true };
 
   async function cargarCategoria(cat, forzar) {
-    if (cache[cat] && cache[cat].cargado && !forzar) return cache[cat];
+    if (cache[cat] && cache[cat].cargado && !forzar && fresco(cache[cat].t)) return cache[cat];
     // Una sola petición con todo (equipos, partidos, clasificación y aviso): ver handleApp en el Worker.
-    const d = await fetchJson(`/api/app?categoria=${encodeURIComponent(cat)}`);
+    const d = await pedir(`/api/app?categoria=${encodeURIComponent(cat)}`);
     estado = { publicado: d.publicado, visible: d.visible };
-    cache[cat] = { equipos: d.equipos || [], partidos: d.partidos || [], clasificacion: d.clasificacion || [], cargado: true };
+    cache[cat] = { equipos: d.equipos || [], partidos: d.partidos || [], clasificacion: d.clasificacion || [], cargado: true, t: Date.now() };
     aviso = d.aviso || null;
     pintarBanner();
     if (cat === categoria) unaSede = new Set(cache[cat].partidos.map((m) => sinCampo(m.venue)).filter(Boolean)).size <= 1;
@@ -55,12 +60,13 @@
 
   async function cargarFav(forzar) {
     if (!fav) { favCache.id = null; favCache.data = null; return null; }
-    if (favCache.id === fav.id && favCache.data && !forzar) return favCache.data;
+    if (favCache.id === fav.id && favCache.data && !forzar && fresco(favCache.t)) return favCache.data;
     try {
-      const d = await fetchJson(`/api/equipos/${encodeURIComponent(fav.id)}`);
+      const d = await pedir(`/api/equipos/${encodeURIComponent(fav.id)}`);
       if (d.visible === false) return null;
       favCache.id = fav.id;
       favCache.data = d;
+      favCache.t = Date.now();
       return d;
     } catch {
       return null; // el equipo pudo borrarse: se trata como si no hubiera favorito
@@ -329,7 +335,7 @@
   // En directo: los partidos en juego de TODAS las categorías (la elegida, primero).
   async function vistaDirecto() {
     const orden = [categoria, ...CATEGORIAS.filter((c) => c !== categoria)];
-    const { partidos: pendientesTodos = [] } = await fetchJson('/api/directo'); // sin terminar, todas las categorías
+    const { partidos: pendientesTodos = [] } = await pedir('/api/directo'); // sin terminar, todas las categorías
     const porCat = orden.map((c) => ({ c, ps: pendientesTodos.filter((m) => m.category === c).sort(porFecha) }));
     const conVivos = porCat.filter((x) => x.ps.some(enJuego));
     directoConVivos = conVivos.length > 0;
@@ -384,7 +390,7 @@
 
   // ---------- Fichas (se abren encima, con botón atrás) ----------
   async function fichaEquipo(id) {
-    const d = await fetchJson(`/api/equipos/${encodeURIComponent(id)}`);
+    const d = await pedir(`/api/equipos/${encodeURIComponent(id)}`);
     if (d.visible === false) return { titulo: 'Equipo', html: noPublicadoHtml() };
     const { equipo: e, jugadores, staff, proximos, jugados } = d;
     let clas = null;
@@ -425,7 +431,7 @@
 
   const TEXTO_INC = { propia: 'Propia puerta', amarilla: 'Amarilla', roja: 'Roja' };
   async function fichaPartido(id) {
-    const d = await fetchJson(`/api/partidos/${encodeURIComponent(id)}`);
+    const d = await pedir(`/api/partidos/${encodeURIComponent(id)}`);
     if (d.visible === false) return { titulo: 'Partido', html: noPublicadoHtml() };
     const { partido: m, goles, incidencias } = d;
     const live = enJuego(m);
@@ -464,7 +470,7 @@
   }
 
   async function fichaJugador(id) {
-    const d = await fetchJson(`/api/jugadores/${encodeURIComponent(id)}`);
+    const d = await pedir(`/api/jugadores/${encodeURIComponent(id)}`);
     if (d.visible === false) return { titulo: 'Jugador', html: noPublicadoHtml() };
     const { jugador: j, totalGoles, goles } = d;
     return {
@@ -652,12 +658,17 @@
       pintar({ silencioso: true });
     }, hayVivos ? REFRESCO_MS : REFRESCO_SIN_VIVOS_MS);
   }
-  document.addEventListener('visibilitychange', async () => {
-    if (document.hidden) return;
-    // Al volver a la app después de un rato, se traen los datos al momento.
+  // Al volver a la app, se traen los datos al momento (sin repetir si ya se pidieron hace menos de 5 s).
+  let ultimoAlVolver = 0;
+  async function alVolver() {
+    if (document.hidden || Date.now() - ultimoAlVolver < 5000) return;
+    ultimoAlVolver = Date.now();
     try { await Promise.all([cargarCategoria(categoria, true), cargarFav(true)]); } catch { /* sin conexión */ }
     pintar({ silencioso: true });
-  });
+  }
+  document.addEventListener('visibilitychange', alVolver);
+  window.addEventListener('pageshow', (e) => { if (e.persisted) alVolver(); });
+  window.addEventListener('focus', alVolver);
 
   function activarBusqueda() {
     const input = document.getElementById('aBusca');
@@ -702,6 +713,15 @@
   });
 
   document.getElementById('app').addEventListener('click', async (e) => {
+    // Pulsar la pestaña en la que ya estás la actualiza (la app instalada no tiene botón de recargar).
+    const pestana = e.target.closest('.app-tabs a[aria-current="page"]');
+    if (pestana && ruta().tipo === 'vista' && `#${ruta().nombre}` === pestana.getAttribute('href')) {
+      e.preventDefault();
+      $view.scrollTo({ top: 0, behavior: 'smooth' });
+      try { await Promise.all([cargarCategoria(categoria, true), cargarFav(true)]); } catch { /* sin conexión */ }
+      pintar({ silencioso: true });
+      return;
+    }
     // Las tablas y el cuadro de utils.js enlazan a equipo.html / partido.html / jugador.html: dentro de la app
     // se abren como fichas.
     const enlace = e.target.closest('a[href]');
