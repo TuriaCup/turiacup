@@ -9,6 +9,21 @@
   (function () {
     var html = document.documentElement;
     if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) html.classList.add('instalada');
+    // iPhone instalado: iOS solo deja dibujar en la ventana (innerHeight), que es más baja que la pantalla
+    // (iPhone 16 Pro Max: pantalla 956, ventana 894; faltan los 62 de la barra de estado). Lo que pase de la ventana
+    // no se pinta, pero ese trozo de abajo ya deja sitio a la barra de inicio. Si el trozo es al menos tan alto como el
+    // margen de la barra de inicio, el menú no necesita su margen inferior (.hueco-abajo) y el trozo se pinta del
+    // color del menú. Si un día iOS lo corrige, el trozo desaparece y vuelve el margen normal solo.
+    if (navigator.standalone === true) {
+      var medir = function () {
+        var vertical = window.matchMedia('(orientation: portrait)').matches;
+        var altoPantalla = vertical ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+        html.classList.toggle('hueco-abajo', altoPantalla - window.innerHeight >= 20);
+      };
+      medir();
+      window.addEventListener('resize', medir);
+      window.addEventListener('orientationchange', function () { setTimeout(medir, 300); });
+    }
   }());
 </script>
 <title>Turia Cup</title>
@@ -17,8 +32,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Turia Cup">
-<!-- Barra de estado opaca (no «black-translucent»): así iOS coloca la app debajo de la barra y mide bien su alto.
-     Con la translúcida, la app instalada medía mal (hueco o menú cortado). Se aplica al volver a instalar la app. -->
+<!-- iOS ignora este valor en la app instalada y pone la barra de estado translúcida igualmente (comprobado en un
+     iPhone con iOS 18.7). El hueco que eso deja abajo se trata en app.html (clase .hueco-abajo) y en css/app.css. -->
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" href="/img/brand/badge-black.png">
