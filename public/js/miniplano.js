@@ -83,7 +83,7 @@
   // Cómo llegar a cada instalación (pantalla «Cómo llegar» de la app). `destino` es lo que se busca en Google Maps
   // para abrir la ruta: si alguna no lleva al sitio exacto, cámbialo por la dirección completa.
   const SEDES = [
-    { clave: 'camarena', nombre: 'Resort Mas Camarena', destino: 'Resort Mas Camarena, Valencia',
+    { clave: 'camarena', nombre: 'Resort Mas Camarena', destino: 'Avenida Mar Adriático, Mas Camarena, Valencia',
       entrada: 'Entrada de vehículos por la Avenida Mar Adriático. Hay tres zonas de parking junto a los campos.',
       imagen: '/img/mapa-camarena-app.jpg', imagenGrande: '/img/mapa-instalaciones.jpg' },
     { clave: 'cracks', nombre: 'Instalaciones Cracks', destino: 'Instalaciones Cracks, Valencia' },
