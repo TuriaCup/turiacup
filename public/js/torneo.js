@@ -113,8 +113,11 @@ async function loadEquiposTab() {
     }
     teamGrid.innerHTML = equipos.map((e) => `
       <a class="team-card" href="equipo.html?id=${encodeURIComponent(e.id)}">
-        <h3>${escapeHtml(e.name)}</h3>
-        <div class="team-meta">${e.city ? escapeHtml(e.city) : ''}${e.group_name ? ` · Grupo ${escapeHtml(e.group_name)}` : ''}</div>
+        ${crestHtml(e.logo_url)}
+        <div class="team-card-txt">
+          <h3>${escapeHtml(e.name)}</h3>
+          <div class="team-meta">${[e.city ? escapeHtml(e.city) : '', e.group_name ? `Grupo ${escapeHtml(e.group_name)}` : ''].filter(Boolean).join(' · ')}</div>
+        </div>
       </a>
     `).join('');
   } catch (err) {
