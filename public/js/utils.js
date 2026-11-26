@@ -184,11 +184,50 @@ function activarCuadro(miId) {
   const cols = [...bracket.children];
   const irA = (i, suave) => bracket.scrollTo({ left: cols[i].offsetLeft - cols[0].offsetLeft, behavior: suave ? 'smooth' : 'auto' });
   chips.forEach((c) => c.addEventListener('click', () => irA(Number(c.dataset.i), true)));
+
+  // Contraer / expandir (como Apple Sports): la ronda que se ve queda compacta, una tarjeta tras otra,
+  // y las siguientes se colocan a media altura de los dos cruces de los que salen. El alto del cuadro
+  // es el de la ronda visible, así en semis o en la final no hay que bajar tanto.
+  const GAP = 14;
+  let actual = -1;
+  function maquetar(activa) {
+    if (activa === actual) return;
+    actual = activa;
+    // Las posiciones se calculan aquí (no se leen del DOM, que está a mitad de la animación).
+    const pos = [];
+    let altoVisible = 0;
+    cols.forEach((col, k) => {
+      const cards = [...col.children];
+      const prev = k > 0 ? pos[k - 1] : [];
+      const mio = [];
+      let y = 0;
+      cards.forEach((card, j) => {
+        const h = card.offsetHeight;
+        let top = y + (j ? GAP : 0);
+        if (k > activa && prev.length) {
+          const par = prev.length >= 2 * cards.length;
+          const a = prev[par ? 2 * j : j];
+          const b = prev[par ? 2 * j + 1 : j] || a;
+          if (a) top = Math.max(top, (a.top + a.h / 2 + b.top + b.h / 2) / 2 - h / 2);
+        }
+        card.style.marginTop = `${top - y}px`;
+        mio.push({ top, h });
+        y = top + h;
+      });
+      pos.push(mio);
+      if (k === activa) altoVisible = y;
+    });
+    bracket.style.height = `${altoVisible + 16}px`;
+  }
+  let pendiente = false;
   bracket.addEventListener('scroll', () => {
     let activa = 0;
     cols.forEach((col, i) => { if (col.offsetLeft - cols[0].offsetLeft <= bracket.scrollLeft + 40) activa = i; });
     chips.forEach((c, i) => c.classList.toggle('active', i === activa));
+    if (!pendiente) { pendiente = true; requestAnimationFrame(() => { pendiente = false; maquetar(activa); }); }
   }, { passive: true });
+  window.addEventListener('resize', () => { const a = actual; actual = -1; maquetar(Math.max(a, 0)); });
+  maquetar(0);
   // Empezar en la ronda del equipo que viene de su perfil: la primera con un partido suyo sin jugar (o la última suya)
   if (miId) {
     const suyas = cols.map((col, i) => ({ i, sinJugar: col.querySelector('.mc-yo-card') && !/\d/.test(col.querySelector('.mc-yo-card .mc-score').textContent) }));

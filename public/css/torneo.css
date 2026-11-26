@@ -275,9 +275,11 @@
 .ronda-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; position: sticky; top: 0; background: var(--bg, #faf8f6); z-index: 2; }
 .ronda-chip { flex: none; padding: 8px 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--white); font-weight: 700; font-size: .9rem; color: var(--text-muted); cursor: pointer; }
 .ronda-chip.active { background: var(--blue-900); color: var(--white); border-color: var(--blue-900); }
-.bracket { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; align-items: stretch; margin: 0 -16px; padding: 4px 16px 12px; scrollbar-width: none; }
+.bracket { display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; align-items: flex-start; margin: 0 -16px; padding: 4px 16px 12px; scrollbar-width: none; }
 .bracket::-webkit-scrollbar { display: none; }
-.bracket-col { flex: 0 0 84%; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: space-around; gap: 14px; }
+.bracket-col { flex: 0 0 84%; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: flex-start; position: relative; }
+.bracket-col > .match-card { flex: none; }
+@media (prefers-reduced-motion: no-preference) { .bracket-col > .match-card { transition: margin-top .25s ease; } .bracket { transition: height .25s ease; } }
 .bracket-hint { text-align: center; color: var(--text-muted); font-size: .8rem; margin: 4px 0 0; }
 @media (min-width: 900px) {
   .bracket { margin: 0; padding-left: 0; }
@@ -320,3 +322,10 @@ button.fase-tab { font: inherit; font-weight: 800; cursor: pointer; }
 }
 
 .ficha-pen { display: block; font-size: .8rem; font-weight: 600; color: var(--text-muted); margin-top: 2px; }
+
+/* Clasificación por posiciones */
+.fase-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+.fase-chip.fase-oro { background: #f7e3a1; color: #5a4300; }
+.fase-chip.fase-plata { background: #e3e6ea; color: #2c3440; }
+.fase-chip.fase-bronce { background: #f0d2b6; color: #5a2e0b; }
+#grupoPartidos[hidden] { display: none; }
