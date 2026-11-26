@@ -83,11 +83,12 @@
   // Cómo llegar a cada instalación (pantalla «Cómo llegar» de la app). `destino` es lo que se busca en Google Maps
   // para abrir la ruta: si alguna no lleva al sitio exacto, cámbialo por la dirección completa.
   const SEDES = [
-    { clave: 'camarena', nombre: 'Resort Mas Camarena', destino: 'Resort Mas Camarena, Bétera, Valencia',
+    { clave: 'camarena', nombre: 'Resort Mas Camarena', destino: 'Resort Mas Camarena, Valencia',
       entrada: 'Entrada de vehículos por la Avenida Mar Adriático. Hay tres zonas de parking junto a los campos.',
       imagen: '/img/mapa-camarena-app.jpg', imagenGrande: '/img/mapa-instalaciones.jpg' },
-    { clave: 'cracks', nombre: 'Cracks', destino: 'Cracks Valencia' },
-    { clave: 'beniferri', nombre: 'Beniferri', destino: 'Campo de fútbol Beniferri, Valencia' },
+    { clave: 'cracks', nombre: 'Instalaciones Cracks', destino: 'Instalaciones Cracks, Valencia' },
+    { clave: 'beniferri', nombre: 'Beniferri', destino: 'Calle Favanella, Beniferri, Valencia',
+      entrada: 'El campo está en la Calle Favanella, en el barrio de Beniferri.' },
   ];
   window.SEDES_TORNEO = SEDES;
   // Instalación a la que pertenece un campo («Resort Mas Camarena · Campo 2» → camarena), o null.
