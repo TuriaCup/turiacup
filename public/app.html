@@ -9,19 +9,6 @@
   (function () {
     var html = document.documentElement;
     if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) html.classList.add('instalada');
-    // iPhone instalado: el navegador da un alto de pantalla al que le falta la barra de estado, así que se usa el
-    // alto real de la pantalla (screen.*, que en iOS no gira: el lado largo es el alto en vertical).
-    if (navigator.standalone === true) {
-      html.classList.add('instalada-ios');
-      var ajustar = function () {
-        var vertical = window.matchMedia('(orientation: portrait)').matches;
-        var alto = vertical ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-        html.style.setProperty('--alto-app', alto + 'px');
-      };
-      ajustar();
-      window.addEventListener('resize', ajustar);
-      window.addEventListener('orientationchange', ajustar);
-    }
   }());
 </script>
 <title>Turia Cup</title>
@@ -30,7 +17,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Turia Cup">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- Barra de estado opaca (no «black-translucent»): así iOS coloca la app debajo de la barra y mide bien su alto.
+     Con la translúcida, la app instalada medía mal (hueco o menú cortado). Se aplica al volver a instalar la app. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" href="/img/brand/badge-black.png">
 <link rel="apple-touch-icon" href="/img/app/apple-touch-icon.png">
