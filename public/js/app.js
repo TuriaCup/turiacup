@@ -6,7 +6,10 @@
 (function () {
   const CATEGORIAS = ['U9', 'U10', 'U11', 'U12'];
   const FASES = { oro: 'Copa Oro', plata: 'Copa Plata', bronce: 'Copa Bronce' };
+  // Cada refresco son ~3 peticiones al Worker: con partidos en juego cada 30 s, si no cada 2 min.
   const REFRESCO_MS = 30000;
+  const REFRESCO_SIN_VIVOS_MS = 120000;
+  const REFRESCO_AVISO_MS = 60000;
   const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -84,6 +87,8 @@
     if (Number.isNaN(f.getTime())) return clave;
     return largo ? `${DIAS[f.getDay()]} ${d} de ${MESES[m - 1]}` : `${DIAS[f.getDay()]} ${d}`;
   }
+  const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const diaLargo = (clave) => { const [y, m, d] = clave.split('-').map(Number); const f = new Date(y, m - 1, d); return Number.isNaN(f.getTime()) ? clave : `${DIAS_LARGOS[f.getDay()]} ${d}`; };
   const hoy = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const enJuego = (m) => Boolean(m.live) && !m.played;
   const porFecha = (a, b) => (a.scheduled_at || '9999').localeCompare(b.scheduled_at || '9999') || (a.venue || '').localeCompare(b.venue || '');
@@ -93,7 +98,9 @@
   const enlaceCategoria = (cat) => `#inicio//${enc(cat)}`;
   const enlaceEtapa = (m) => (FASES[m.phase] ? enlaceFase(m.category, m.phase) : m.group_name ? enlaceGrupo(m.category, m.group_name) : '');
   const enlaceCampo = (v) => `#sedes/${enc(v)}`;
-  const etapa = (m) => m.round_name || (m.group_name ? `Grupo ${m.group_name}` : '') || FASES[m.phase] || '';
+  // En la fase final se dice siempre de qué copa es: «Copa Oro · Semifinal · 2».
+  const etapa = (m) => (FASES[m.phase] ? [FASES[m.phase], m.round_name].filter(Boolean).join(' · ')
+    : m.round_name || (m.group_name ? `Grupo ${m.group_name}` : ''));
   const sinCampo = (v) => String(v || '').replace(/\s*[·\-–,]?\s*campo\s*\d+\s*/i, ' ').trim();
   // Si toda la categoría se juega en una sola instalación, basta con «Campo 2».
   let unaSede = true;
@@ -103,6 +110,7 @@
     inicio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
     partidos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
     grupos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14h18M9 4v16"/></svg>',
+    directo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M8 8a5.6 5.6 0 0 0 0 8M16 8a5.6 5.6 0 0 1 0 8M5 5a9.9 9.9 0 0 0 0 14M19 5a9.9 9.9 0 0 1 0 14"/></svg>',
     equipos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"/></svg>',
     mas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
     estrella: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.8 2.8 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17l-5.7 3.1 1.2-6.3L2.9 9.4l6.3-.8z"/></svg>',
@@ -141,7 +149,7 @@
         <div class="a-eqs">
           ${equipo(m.home_team_id, m.home_team_name, m.home_logo, m.home_score, ganaLocal, m.home_pen)}
           ${equipo(m.away_team_id, m.away_team_name, m.away_logo, m.away_score, ganaVisit, m.away_pen)}
-          <div class="a-etapa">${escapeHtml(etapa(m))}</div>
+          <div class="a-etapa${FASES[m.phase] ? ` fase fase-${m.phase}` : ''}">${escapeHtml(etapa(m))}</div>
         </div>
       </a>`;
   }
@@ -193,7 +201,7 @@
 
   // ---------- Pantallas principales ----------
   const PESTANAS = [
-    ['inicio', 'Inicio'], ['partidos', 'Partidos'], ['grupos', 'Grupos'], ['equipos', 'Equipos'], ['mas', 'Más'],
+    ['inicio', 'Inicio'], ['partidos', 'Partidos'], ['grupos', 'Grupos'], ['directo', 'En directo'], ['mas', 'Más'],
   ];
 
   async function vistaInicio() {
@@ -235,7 +243,8 @@
     return `
       <div class="a-hero"><small>Turia Cup · ${escapeHtml(categoria)}</small><h1>${escapeHtml(titular)}</h1></div>
       ${seccion('Mi equipo')}${mi}
-      ${vivos.length ? `${seccion('En directo', '#partidos/vivo', 'Ver todos')}${lista(vivos)}` : ''}
+      ${vivos.length ? `${seccion('En directo', '#directo', 'Ver todos')}${lista(vivos)}` : ''}
+      ${accesoCuadros(d.partidos)}
       ${pendientes.length ? `${seccion('A continuación', '#partidos', 'Calendario')}${lista(pendientes.slice(0, 3))}` : ''}
       ${jugados.length ? `${seccion('Últimos resultados', '#partidos', 'Todos')}${lista(jugados.slice(0, 3))}` : ''}
       ${top.length ? `${seccion('Goleadores', '#goleadores', 'Ver tabla')}<div class="a-card">${filasGoleadores(top, d.equipos)}</div>` : ''}
@@ -244,7 +253,6 @@
 
   async function vistaPartidos(arg) {
     const d = await cargarCategoria(categoria);
-    if (arg === 'vivo') ui.filtro = 'vivo';
     const ps = [...d.partidos].sort(porFecha);
     if (!ps.length) return '<p class="a-vacio">Todavía no hay partidos en esta categoría.</p>';
     const dias = [...new Set(ps.map((m) => dia(m.scheduled_at)))];
@@ -253,20 +261,19 @@
       const conPendientes = ps.find((m) => !m.played);
       ui.dia = dias.includes(hoy()) ? hoy() : (conPendientes ? dia(conPendientes.scheduled_at) : dias[dias.length - 1]);
     }
-    const hayVivos = ps.some(enJuego);
     const campos = [...new Set(ps.filter((m) => dia(m.scheduled_at) === ui.dia).map((m) => m.venue).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
-    if (ui.filtro === 'vivo' && !hayVivos) ui.filtro = 'todos';
-    if (ui.filtro !== 'todos' && ui.filtro !== 'vivo' && !campos.includes(ui.filtro)) ui.filtro = 'todos';
+    if (ui.filtro !== 'todos' && !campos.includes(ui.filtro)) ui.filtro = 'todos';
 
-    let sel = ui.filtro === 'vivo' ? ps.filter(enJuego) : ps.filter((m) => dia(m.scheduled_at) === ui.dia);
-    if (ui.filtro !== 'todos' && ui.filtro !== 'vivo') sel = sel.filter((m) => m.venue === ui.filtro);
+    const delDia = ps.filter((m) => dia(m.scheduled_at) === ui.dia);
+    const sel = ui.filtro === 'todos' ? delDia : delDia.filter((m) => m.venue === ui.filtro);
     const horas = [...new Set(sel.map((m) => hora(m.scheduled_at)))];
-    const chips = [['todos', 'Todos'], ...(hayVivos ? [['vivo', '● En juego']] : []), ...campos.map((c) => [c, campoCorto(c)])];
+    const chips = [['todos', 'Todos'], ...campos.map((c) => [c, campoCorto(c)])];
 
     return `
-      ${ui.filtro === 'vivo' ? '' : `<div class="a-dias">${dias.map((k) => `<button type="button" data-dia="${k}" aria-pressed="${k === ui.dia}">${escapeHtml(nombreDia(k))}</button>`).join('')}</div>`}
-      <div class="a-chips">${chips.map(([k, t]) => `<button type="button" class="a-chip${k === 'vivo' ? ' vivo' : ''}" data-filtro="${escapeHtml(k)}" aria-pressed="${k === ui.filtro}">${escapeHtml(t)}</button>`).join('')}</div>
-      ${horas.length ? horas.map((h) => `<h3 class="a-hora">${h || 'Hora por confirmar'}</h3>${lista(sel.filter((m) => hora(m.scheduled_at) === h), fav && fav.id, '', ui.filtro !== 'vivo')}`).join('')
+      <div class="a-dias">${dias.map((k) => `<button type="button" data-dia="${k}" aria-pressed="${k === ui.dia}">${escapeHtml(nombreDia(k))}</button>`).join('')}</div>
+      ${campos.length > 1 ? `<div class="a-chips">${chips.map(([k, t]) => `<button type="button" class="a-chip" data-filtro="${escapeHtml(k)}" aria-pressed="${k === ui.filtro}">${escapeHtml(t)}</button>`).join('')}</div>` : ''}
+      ${accesoCuadros(delDia, ui.dia)}
+      ${horas.length ? horas.map((h) => `<h3 class="a-hora">${h || 'Hora por confirmar'}</h3>${lista(sel.filter((m) => hora(m.scheduled_at) === h), fav && fav.id, '', true)}`).join('')
         : '<p class="a-vacio">No hay partidos con este filtro.</p>'}`;
   }
 
@@ -281,13 +288,13 @@
     }
     const chips = `<div class="a-chips a-chips-grupo">${grupos.map((g) => `<button type="button" class="a-chip" data-grupo="${escapeHtml(g)}" aria-pressed="${g === ui.grupo}">Grupo ${escapeHtml(g)}</button>`).join('')}
       ${grupos.length > 1 ? `<button type="button" class="a-chip" data-grupo="POS" aria-pressed="${ui.grupo === 'POS'}">Por posiciones</button>` : ''}</div>`;
-    if (ui.grupo === 'POS') return `${chips}<div class="a-posiciones">${clasificacionPorPosicionesHtml(d.clasificacion, grupos)}</div>`;
+    if (ui.grupo === 'POS') return `${chips}${accesoCuadros(d.partidos)}<div class="a-posiciones">${clasificacionPorPosicionesHtml(d.clasificacion, grupos)}</div>`;
 
     const filas = d.clasificacion.filter((r) => r.group_name === ui.grupo);
     const fases = fasesPrevistas(d.clasificacion);
     const partidos = d.partidos.filter((m) => m.phase === 'grupos' && m.group_name === ui.grupo).sort(porFecha);
     const previstas = filas.map((r) => fases.get(Number(r.team_id)));
-    return `${chips}
+    return `${chips}${accesoCuadros(d.partidos)}
       <div class="a-tabla">${tablaGrupoHtml(filas, { enlaces: true, miId: fav && fav.id })}</div>
       ${grupos.length > 1 && filas.some((r) => r.pj > 0) ? `<div class="a-card a-previsto"><b>Si el grupo acabara ahora</b>
         ${filas.map((r, i) => `<div><span>${i + 1}.º ${escapeHtml(r.name)}</span><a class="fase-chip fase-${previstas[i]}" href="${enlaceFase(categoria, previstas[i])}">${FASES[previstas[i]]}</a></div>`).join('')}</div>` : ''}
@@ -312,10 +319,44 @@
           ${estrellaBtn(e.id, e.category)}</div>`).join('')}</div>`).join('');
   }
 
+  // Acceso a los cuadros de la fase final que tengan partidos en esta lista (p. ej. el último día).
+  function accesoCuadros(partidos, diaElegido) {
+    const fases = Object.keys(FASES).filter((f) => partidos.some((m) => m.phase === f));
+    if (!fases.length) return '';
+    return `<div class="a-card a-cuadros"><span><b>${!diaElegido ? 'Fase final' : diaElegido === hoy() ? 'Hoy se juega la fase final' : `El ${diaLargo(diaElegido)} se juega la fase final`}</b><small>Mira cómo van los cruces</small></span>
+      <div>${fases.map((f) => `<a class="fase-chip fase-${f}" href="${enlaceFase(categoria, f)}">${FASES[f].replace('Copa ', '')}</a>`).join('')}</div></div>`;
+  }
+
+  let directoConVivos = false;
+  // En directo: los partidos en juego de TODAS las categorías (la elegida, primero).
+  async function vistaDirecto() {
+    const orden = [categoria, ...CATEGORIAS.filter((c) => c !== categoria)];
+    const res = await Promise.all(orden.map((c) => (c === categoria
+      ? cargarCategoria(c).then((d) => d.partidos)
+      : fetchJson(`/api/partidos?categoria=${encodeURIComponent(c)}`).then((d) => d.partidos || []).catch(() => []))));
+    const porCat = orden.map((c, i) => ({ c, ps: [...res[i]].sort(porFecha) }));
+    const conVivos = porCat.filter((x) => x.ps.some(enJuego));
+    directoConVivos = conVivos.length > 0;
+    if (conVivos.length) {
+      return `${conVivos.map((x) => `${seccion(x.c, enlaceCategoria(x.c), 'Ir a la categoría')}${lista(x.ps.filter(enJuego), fav && fav.id)}`).join('')}
+        <p class="a-nota">Los marcadores se actualizan solos cada 30 segundos.</p>`;
+    }
+    // Nada en juego: los siguientes en empezar de cada categoría.
+    const proximos = porCat.map((x) => {
+      const pend = x.ps.filter((m) => !m.played && m.scheduled_at);
+      const primera = pend.length ? pend[0].scheduled_at : null;
+      return { c: x.c, ps: pend.filter((m) => m.scheduled_at === primera) };
+    }).filter((x) => x.ps.length);
+    return `<div class="a-card a-sin-directo"><span class="a-tab-ico">${ICO.directo}</span><p><b>Ahora mismo no hay partidos en juego</b>
+        En cuanto empiece uno, saldrá aquí con su marcador.</p></div>
+      ${proximos.map((x) => `${seccion(`${x.c} · próximos en empezar`, enlaceCategoria(x.c), 'Ir a la categoría')}${lista(x.ps, fav && fav.id)}`).join('')}`;
+  }
+
   async function vistaMas() {
     const item = (href, ico, titulo, sub, externo) => `<a href="${href}"${externo ? ' target="_blank" rel="noopener"' : ''}><span class="a-mico">${ico}</span>
       <span class="a-mtxt"><b>${titulo}</b><small>${sub}</small></span>${ICO.flecha}</a>`;
     return `<div class="a-card a-menu">
+        ${item('#equipos', ICO.equipos, 'Equipos', `Todos los clubes de ${escapeHtml(categoria)} y sus plantillas`)}
         ${item('#final', ICO.copa, 'Fase final', 'Cuadros de Copa Oro, Plata y Bronce')}
         ${item('#goleadores', ICO.balon, 'Goleadores', `Máximos goleadores de ${escapeHtml(categoria)}`)}
         ${item('#sedes', ICO.mapa, 'Cómo llegar', 'Campos y mapa de cada instalación')}
@@ -485,7 +526,7 @@
   }
 
   const FICHAS = { equipo: fichaEquipo, partido: fichaPartido, jugador: fichaJugador, goleadores: fichaGoleadores, final: fichaFinal, sedes: fichaSedes };
-  const VISTAS = { inicio: vistaInicio, partidos: vistaPartidos, grupos: vistaGrupos, equipos: vistaEquipos, mas: vistaMas };
+  const VISTAS = { inicio: vistaInicio, partidos: vistaPartidos, grupos: vistaGrupos, directo: vistaDirecto, equipos: vistaEquipos, mas: vistaMas };
 
   // ---------- Navegación ----------
   let ultimaPestana = 'inicio';
@@ -515,8 +556,13 @@
     return { tipo: 'vista', nombre: 'inicio' };
   }
 
+  // Equipos ya no tiene pestaña propia: se abre desde Más, así que ilumina Más.
   function pintarTabs(activa) {
-    $tabs.innerHTML = PESTANAS.map(([k, t]) => `<a href="#${k}" ${k === activa ? 'aria-current="page"' : ''}>${ICO[k]}<span>${t}</span></a>`).join('');
+    const marcada = activa === 'equipos' ? 'mas' : activa;
+    const d = cache[categoria];
+    const vivos = d ? d.partidos.filter(enJuego).length : 0;
+    $tabs.innerHTML = PESTANAS.map(([k, t]) => `<a href="#${k}" ${k === marcada ? 'aria-current="page"' : ''}${k === 'directo' && vivos ? ' class="hay-vivos"' : ''}>
+      <span class="a-tab-ico">${ICO[k]}${k === 'directo' && vivos ? `<i class="a-badge">${vivos}</i>` : ''}</span><span>${t}</span></a>`).join('');
   }
 
   function pintarCabecera(r, ficha) {
@@ -569,6 +615,7 @@
     $aviso.hidden = estado.publicado;
     $aviso.textContent = 'Vista interna: el torneo todavía no es público. Lo ves porque tienes abierta la sesión de administrador.';
     pintarCabecera(r, ficha);
+    pintarTabs(ultimaPestana); // ya con datos: contador de partidos en juego
     $view.innerHTML = html;
     $view.scrollTop = opciones.silencioso ? scroll : 0;
     if (ficha && ficha.despues) ficha.despues();
@@ -580,12 +627,14 @@
   function programarRefresco(r, ficha) {
     const toca = r.tipo === 'vista' ? r.nombre !== 'mas' : Boolean(ficha && ficha.refrescar);
     if (!toca) return;
+    const d = cache[categoria];
+    const hayVivos = (d && d.partidos.some(enJuego)) || (ficha && ficha.refrescar) || (r.nombre === 'directo' && directoConVivos);
     temporizador = setTimeout(async () => {
       if (document.hidden) { programarRefresco(r, ficha); return; }
       if (document.activeElement && document.activeElement.id === 'aBusca') { programarRefresco(r, ficha); return; }
       try { await Promise.all([cargarCategoria(categoria, true), cargarFav(true)]); } catch { /* se reintenta en el siguiente */ }
       pintar({ silencioso: true });
-    }, r.tipo === 'ficha' ? 20000 : REFRESCO_MS);
+    }, hayVivos ? REFRESCO_MS : REFRESCO_SIN_VIVOS_MS);
   }
   document.addEventListener('visibilitychange', async () => {
     if (document.hidden) return;
@@ -633,7 +682,7 @@
       <button type="button" data-cerrar-aviso aria-label="Cerrar aviso">×</button>`;
     $banner.hidden = false;
   }
-  setInterval(() => { if (!document.hidden) cargarAviso(); }, REFRESCO_MS);
+  setInterval(() => { if (!document.hidden) cargarAviso(); }, REFRESCO_AVISO_MS);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarAviso(); });
 
   // ---------- Eventos ----------
@@ -685,7 +734,6 @@
       ui.dia = d.dia; pintar({ silencioso: true });
     } else if (d.filtro) {
       ui.filtro = d.filtro;
-      if (ruta().arg === 'vivo') history.replaceState(history.state, '', '#partidos');
       pintar({ silencioso: true });
     } else if (d.grupo) {
       ui.grupo = d.grupo; pintar({ silencioso: true });

@@ -250,3 +250,26 @@ body.app-body { background: var(--a-fondo); overscroll-behavior-y: none; -webkit
 .a-marc-meta { margin-top: 8px; }
 .a-marc-meta a { color: var(--a-naranja-osc); font-weight: 600; text-decoration: none; }
 .a-previsto a.fase-chip { text-decoration: none; }
+
+/* Pestaña En directo: contador rojo con los partidos en juego de la categoría */
+.a-tab-ico { position: relative; display: inline-grid; place-items: center; }
+.a-badge { position: absolute; top: -4px; right: -9px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--a-vivo);
+  color: #fff; font-style: normal; font-size: .62rem; font-weight: 800; line-height: 17px; text-align: center; box-shadow: 0 0 0 2px var(--a-carta); }
+.app-tabs a.hay-vivos:not([aria-current="page"]) { color: var(--a-vivo); }
+.a-sin-directo { display: flex; gap: 12px; align-items: center; padding: 16px 14px; }
+.a-sin-directo .a-tab-ico { flex: none; width: 40px; height: 40px; border-radius: 50%; background: #fdeaea; color: var(--a-vivo); }
+.a-sin-directo svg { width: 22px; height: 22px; }
+.a-sin-directo p { margin: 0; color: var(--a-gris); font-size: .88rem; }
+.a-sin-directo b { display: block; color: var(--a-negro); font-size: .95rem; }
+
+/* Fase final: qué copa es cada partido y acceso directo a los cuadros */
+.a-etapa.fase { font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.a-etapa.fase::before { content: ""; width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.a-etapa.fase-oro { color: #8a6a00; } .a-etapa.fase-oro::before { background: #e0b400; }
+.a-etapa.fase-plata { color: #4f5966; } .a-etapa.fase-plata::before { background: #9aa3ad; }
+.a-etapa.fase-bronce { color: #8a4b1c; } .a-etapa.fase-bronce::before { background: #b8733e; }
+.a-cuadros { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 12px 14px; margin-top: 12px; background: var(--a-negro); color: #fff; border-color: transparent; }
+.a-cuadros > span b { display: block; }
+.a-cuadros > span small { color: #cdbfb2; font-size: .78rem; }
+.a-cuadros > div { display: flex; gap: 6px; }
+.a-cuadros a.fase-chip { text-decoration: none; padding: 6px 12px; font-size: .82rem; }

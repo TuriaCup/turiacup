@@ -39,7 +39,7 @@ Base de datos: **Cloudflare D1** (`turiacup-db`, binding `DB`). Email: Resend.
   `equipo.html`, `jugador.html`, `admin.html`, más `css/`, `js/`, `img/` y
   `plantillas/plantilla-modelo.xlsx`.
 - `public/app.html` + `js/app.js` + `css/app.css` — la **app del torneo** (`/app`): una sola página con cinco
-  pestañas abajo (Inicio, Partidos, Grupos, Equipos, Más) y fichas de equipo/partido/jugador encima. Usa las
+  pestañas abajo (Inicio, Partidos, Grupos, En directo, Más; Equipos se abre desde Más) y fichas de equipo/partido/jugador encima. Usa las
   mismas APIs públicas que el resto. `manifest.webmanifest` + `img/app/` la hacen instalable («Añadir a pantalla
   de inicio»). No hay service worker a propósito: así nunca enseña resultados viejos.
 
@@ -178,3 +178,8 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
   Las rutas admiten la categoría al final (`#grupos/C/U11`, `#final/oro/U10`, `#inicio//U12`) y, si es otra, la app
   cambia de categoría sola; `#sedes/<campo>` abre el mapa con ese campo marcado. Tras aplicar el grupo o el campo
   del hash, se quita del hash (`replaceState`) para que el refresco automático no deshaga lo que elija el usuario.
+- **Refresco de la app y límite de Cloudflare**: cada refresco son ~3 peticiones al Worker. Se refresca cada 30 s solo
+  si hay partidos en juego (o en la pestaña En directo con alguno en juego) y cada 2 min si no; el aviso, cada minuto.
+  El plan gratuito de Workers admite 100.000 peticiones al día: no bajes estos tiempos sin mirar el plan.
+- **En directo** junta los partidos en juego de las cuatro categorías (pide `/api/partidos` de cada una). En la fase
+  final, la etiqueta del partido incluye la copa («Copa Oro · Semifinal · 2»), también en `matchCardHtml` de `utils.js`.
