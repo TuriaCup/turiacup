@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <script src="/js/redireccion.js"></script>
+<script>
+  // Instalada en la pantalla de inicio (sin barras de Safari): ver «Alto de la app» en css/app.css.
+  if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) document.documentElement.classList.add('instalada');
+</script>
 <title>Turia Cup</title>
 <meta name="description" content="Resultados, clasificaciones, partidos en directo y equipos de la Turia Cup.">
 <meta name="theme-color" content="#1c130a">

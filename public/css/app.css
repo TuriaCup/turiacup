@@ -15,11 +15,13 @@
 html, body.app-body { height: 100%; }
 body.app-body { background: var(--a-fondo); overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
 
-/* La app se fija a los cuatro bordes de la pantalla en lugar de usar height: 100%. En el iPhone, con la app instalada
-   (pantalla completa y barra de estado translúcida), el 100% no cuenta la barra de estado y dejaba un hueco
-   debajo del menú inferior, como si esperase la barra de Safari. Con position: fixed + inset: 0 ocupa justo la
-   pantalla visible, tanto en Safari (con sus barras) como instalada. */
-.app { position: fixed; inset: 0; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; background: var(--a-fondo); }
+/* Alto de la app, distinto según cómo se abra:
+   · En Safari: height: 100% (lo que se ve entre la barra de arriba y la barra flotante de Safari). Con position: fixed
+     el menú quedaba DEBAJO de la barra flotante de Safari (iOS 26) y se veía cortado.
+   · Instalada en la pantalla de inicio (clase .instalada en <html>, la pone app.html): no hay barras de Safari,
+     pero el 100% no cuenta la barra de estado translúcida y dejaba un hueco bajo el menú; ahí se fija a los bordes. */
+.app { height: 100%; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; background: var(--a-fondo); position: relative; }
+html.instalada .app { position: fixed; inset: 0; height: auto; }
 @media (min-width: 600px) { .app { border-left: 1px solid var(--a-linea); border-right: 1px solid var(--a-linea); } }
 
 /* Cabecera */
