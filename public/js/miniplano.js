@@ -82,13 +82,17 @@
 
   // Cómo llegar a cada instalación (pantalla «Cómo llegar» de la app). `destino` es lo que se busca en Google Maps
   // para abrir la ruta: si alguna no lleva al sitio exacto, cámbialo por la dirección completa.
+  // `imagen`: mapa 3D ligero para el móvil; `imagenGrande`: el original, que se abre al pulsar «Ampliar».
   const SEDES = [
-    { clave: 'camarena', nombre: 'Resort Mas Camarena', destino: 'Resort Mas Camarena, Valencia',
-      entrada: 'Entrada de vehículos por la Avenida Mar Adriático. Hay tres zonas de parking junto a los campos.',
-      imagen: '/img/mapa-camarena-app.jpg', imagenGrande: '/img/mapa-instalaciones.jpg' },
-    { clave: 'cracks', nombre: 'Instalaciones Cracks', destino: 'Instalaciones Cracks, Valencia' },
+    { clave: 'camarena', nombre: 'Resort Mas Camarena', destino: 'Avenida Mar Adriático, Mas Camarena, Valencia',
+      entrada: 'Entrada de vehículos por la Avenida Mar Adriático. Hay parking junto a los campos 1 y 2.',
+      imagen: '/img/mapa-camarena-3d-app.jpg', imagenGrande: '/img/mapa-instalaciones-3d.jpg', ancho: 4000, alto: 2026 },
+    { clave: 'cracks', nombre: 'Instalaciones Cracks', destino: 'Instalaciones Cracks, Valencia',
+      entrada: 'Tiene dos entradas, marcadas en verde en el mapa.',
+      imagen: '/img/mapa-cracks-app.jpg', imagenGrande: '/img/mapa-cracks.jpg', ancho: 3200, alto: 1932 },
     { clave: 'beniferri', nombre: 'Beniferri', destino: 'Calle Favanella, Beniferri, Valencia',
-      entrada: 'El campo está en la Calle Favanella, en el barrio de Beniferri.' },
+      entrada: 'Entrada por la Calle Favanella.',
+      imagen: '/img/mapa-beniferri-app.jpg', imagenGrande: '/img/mapa-beniferri.jpg', ancho: 2880, alto: 1636 },
   ];
   window.SEDES_TORNEO = SEDES;
   // Instalación a la que pertenece un campo («Resort Mas Camarena · Campo 2» → camarena), o null.

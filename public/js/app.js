@@ -33,7 +33,7 @@
   const catUrl = (qs.get('categoria') || '').toUpperCase();
   if (CATEGORIAS.includes(catUrl)) { categoria = catUrl; escribir('tc-cat', categoria); }
 
-  const ui = { dia: null, filtro: 'todos', grupo: null, fase: 'oro', busca: '', campos: {} };
+  const ui = { dia: null, filtro: 'todos', grupo: null, fase: 'oro', busca: '' };
 
   // ---------- Datos ----------
   let aviso = null; // aviso de la organización (llega junto con los datos de la categoría)
@@ -458,7 +458,7 @@
           <small><a href="#equipo/${e.team_id}">${escapeHtml(Number(e.team_id) === Number(m.home_team_id) ? m.home_team_name : m.away_team_name)}</a></small></div>`).join('')}</div>` : ''}
         ${m.venue ? `${seccion('Dónde se juega')}<div class="a-card a-plano">${miniPlanoHtml(m.venue) || `<p>${escapeHtml(m.venue)}</p>`}
           <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="${rutaMaps(sedeDe(m.venue).destino)}">Cómo llegar a ${escapeHtml(sedeDe(m.venue).nombre)}</a>
-          <a class="a-sede-ver" href="${enlaceCampo(m.venue)}">Ver la instalación: parking, entrada y campos</a></div>` : ''}
+          <a class="a-sede-ver" href="${enlaceCampo(m.venue)}">Ver el mapa 3D: entrada, vestuarios, baños y cafetería</a></div>` : ''}
         ${live ? '<p class="a-nota">El marcador se actualiza solo.</p>' : ''}`,
     };
   }
@@ -516,29 +516,26 @@
 
   async function fichaSedes(campoPedido) {
     const d = await cargarCategoria(categoria);
-    if (campoPedido) ui.campos[sedeDe(campoPedido).clave] = campoPedido;
+    const pedida = campoPedido ? sedeDe(campoPedido).clave : null; // desde un partido: su instalación, la primera
     const campos = [...new Set(d.partidos.map((m) => m.venue).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
     const sedes = [...(window.SEDES_TORNEO || [])];
     for (const c of campos) { const s = sedeDe(c); if (!sedes.some((x) => x.clave === s.clave)) sedes.push(s); }
     const usadas = new Set(campos.map((c) => sedeDe(c).clave));
-    sedes.sort((x, y) => Number(usadas.has(y.clave)) - Number(usadas.has(x.clave)));
+    const peso = (s) => (s.clave === pedida ? 2 : usadas.has(s.clave) ? 1 : 0);
+    sedes.sort((x, y) => peso(y) - peso(x));
     return {
       titulo: 'Cómo llegar', sub: 'Instalaciones del torneo',
       html: sedes.map((s) => {
-        const suyos = campos.filter((c) => sedeDe(c).clave === s.clave);
-        const elegido = suyos.includes(ui.campos[s.clave]) ? ui.campos[s.clave] : suyos[0];
-        const plano = elegido ? miniPlanoHtml(elegido) : '';
+        const plano = s.imagen ? '' : miniPlanoHtml(campos.find((c) => sedeDe(c).clave === s.clave)); // sin mapa 3D, el plano
         return `${seccion(s.nombre)}<div class="a-card a-sede">
-          ${s.imagen ? `<a class="a-sede-foto" href="${escapeHtml(s.imagenGrande || s.imagen)}" target="_blank" rel="noopener"><img src="${escapeHtml(s.imagen)}" alt="Vista aérea de ${escapeHtml(s.nombre)} con los campos, el parking y la entrada" loading="lazy"><span>Ampliar</span></a>` : ''}
+          ${s.imagen ? `<a class="a-sede-foto" href="${escapeHtml(s.imagenGrande || s.imagen)}" target="_blank" rel="noopener"><img src="${escapeHtml(s.imagen)}" alt="Mapa 3D de ${escapeHtml(s.nombre)} con los campos, la entrada, la cafetería, los baños y los vestuarios" loading="lazy"${s.ancho ? ` style="aspect-ratio: ${s.ancho} / ${s.alto}"` : ''}><span>Ampliar</span></a>` : ''}
           <div class="a-sede-txt">
             ${s.entrada ? `<p>${escapeHtml(s.entrada)}</p>` : ''}
             ${usadas.has(s.clave) ? '' : `<p class="a-gris">En ${escapeHtml(categoria)} no hay partidos en esta instalación.</p>`}
             <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="${rutaMaps(s.destino)}">Cómo llegar</a>
             <a class="a-sede-ver" target="_blank" rel="noopener" href="${buscarMaps(s.destino)}">Ver en Google Maps</a>
           </div>
-          ${plano ? `<div class="a-sede-plano"><b>Dentro de la instalación</b>
-            ${suyos.length > 1 ? `<div class="a-chips">${suyos.map((c) => `<button type="button" class="a-chip" data-sede="${escapeHtml(s.clave)}" data-campo="${escapeHtml(c)}" aria-pressed="${c === elegido}">${escapeHtml(campoCorto(c))}</button>`).join('')}</div>` : ''}
-            ${plano}</div>` : ''}
+          ${plano ? `<div class="a-sede-plano"><b>Dentro de la instalación</b>${plano}</div>` : ''}
         </div>`;
       }).join(''),
     };
@@ -740,8 +737,6 @@
       else if (ruta().tipo === 'ficha') { saltoSinPaso = true; location.replace(`#${ultimaPestana}`); }
       else if (vieneDeLaWeb) history.back();
       else location.href = '/';
-    } else if (d.campo) {
-      ui.campos[d.sede] = d.campo; history.replaceState(history.state, '', '#sedes'); pintar({ silencioso: true });
     } else if (d.dia) {
       ui.dia = d.dia; pintar({ silencioso: true });
     } else if (d.filtro) {
