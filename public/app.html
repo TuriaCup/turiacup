@@ -6,7 +6,23 @@
 <script src="/js/redireccion.js"></script>
 <script>
   // Instalada en la pantalla de inicio (sin barras de Safari): ver «Alto de la app» en css/app.css.
-  if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) document.documentElement.classList.add('instalada');
+  (function () {
+    var html = document.documentElement;
+    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) html.classList.add('instalada');
+    // iPhone instalado: el navegador da un alto de pantalla al que le falta la barra de estado, así que se usa el
+    // alto real de la pantalla (screen.*, que en iOS no gira: el lado largo es el alto en vertical).
+    if (navigator.standalone === true) {
+      html.classList.add('instalada-ios');
+      var ajustar = function () {
+        var vertical = window.matchMedia('(orientation: portrait)').matches;
+        var alto = vertical ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+        html.style.setProperty('--alto-app', alto + 'px');
+      };
+      ajustar();
+      window.addEventListener('resize', ajustar);
+      window.addEventListener('orientationchange', ajustar);
+    }
+  }());
 </script>
 <title>Turia Cup</title>
 <meta name="description" content="Resultados, clasificaciones, partidos en directo y equipos de la Turia Cup.">
