@@ -25,9 +25,8 @@
   let categoria = leer('tc-cat') || (fav && fav.cat) || 'U9';
   if (!CATEGORIAS.includes(categoria)) categoria = 'U9';
 
-  // Enlace por club: /app?equipo=12 deja marcado ese equipo como «Mi equipo».
+  // /app?categoria=U10 abre directamente esa categoría.
   const qs = new URLSearchParams(location.search);
-  const equipoUrl = Number(qs.get('equipo'));
   const catUrl = (qs.get('categoria') || '').toUpperCase();
   if (CATEGORIAS.includes(catUrl)) categoria = catUrl;
 
@@ -647,18 +646,6 @@
 
   // ---------- Arranque ----------
   async function arrancar() {
-    if (equipoUrl) {
-      // Enlace de club: se marca su equipo (y su categoría) y se limpia la dirección.
-      try {
-        const d = await fetchJson(`/api/equipos/${equipoUrl}`);
-        if (d.equipo) {
-          fav = { id: d.equipo.id, cat: d.equipo.category };
-          escribir('tc-fav', JSON.stringify(fav));
-          categoria = d.equipo.category;
-          escribir('tc-cat', categoria);
-        }
-      } catch { /* enlace con un equipo que no existe */ }
-    }
     if (location.search) history.replaceState(null, '', `${location.pathname}${location.hash}`);
     pintar();
   }

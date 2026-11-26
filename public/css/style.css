@@ -349,8 +349,10 @@ h3 { font-size: 1.05rem; color: var(--blue-900); }
 }
 .footer-inner a { color: var(--white); }
 
-/* Mobile nav */
-@media (max-width: 800px) {
+/* Mobile nav: con 8 enlaces el menú horizontal solo cabe en pantallas anchas */
+.main-nav a { white-space: nowrap; }
+@media (min-width: 1181px) and (max-width: 1280px) { .main-nav { gap: 20px; } }
+@media (max-width: 1180px) {
   .nav-toggle { display: flex; }
   .main-nav {
     position: absolute;

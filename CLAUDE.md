@@ -157,7 +157,7 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **La app navega por el hash** (`#partidos`, `#equipo/12`, `#partido/34`, `#final/plata`) y reutiliza las tablas
   y el cuadro de `utils.js`, que enlazan a `equipo.html?id=…`: `app.js` intercepta esos clics y los convierte en
   fichas. Si cambias el formato de esos enlaces en `utils.js`, revisa el `match` del listener de `app.js`.
-- **«Mi equipo» no tiene cuentas**: se guarda en `localStorage` (`tc-fav`, `tc-cat`) del móvil. El enlace
-  `/app?equipo=<id>` lo deja marcado (sirve para mandarlo al WhatsApp de cada club o en un QR).
+- **«Mi equipo» no tiene cuentas**: se guarda en `localStorage` (`tc-fav`, `tc-cat`) del móvil. Descartado a
+  propósito el inicio de sesión. `/app?categoria=U10` abre esa categoría.
 - **`clasificacionPorPosicionesHtml` y `fasePorPosicion` viven en `utils.js`** (las usan `torneo.html` y la app).
   La regla de qué puesto va a Oro/Plata/Bronce está ahí, en un solo sitio.
