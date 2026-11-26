@@ -31,6 +31,10 @@ Base de datos: **Cloudflare D1** (`turiacup-db`, binding `DB`). Email: Resend.
 - `worker/routes/admin.js` — CRUD de equipos, jugadores/plantillas y partidos/resultados, más
   `POST /api/admin/equipos/importar` (alta masiva de equipos desde texto pegado; con
   `previsualizar: true` no escribe nada) y `GET/PUT /api/admin/ajustes` (interruptor de publicación).
+- `worker/routes/entradas.js` — venta de entradas con Stripe: `/api/entradas/tipos`, `/api/entradas/comprar`
+  (crea el pedido y la sesión de Stripe Checkout), `/api/entradas/pedido/:codigo`, `POST /api/stripe/webhook` y
+  `/api/admin/entradas/*` (tipos, pedidos, reenviar email, `validar`/`deshacer` del control de acceso).
+  Lógica compartida en `worker/lib/entradas.js` y llamadas a Stripe sin SDK en `worker/lib/stripe.js`.
 - `worker/lib/` — `http.js` (respuestas JSON, `clean`, `escapeHtml`, `parseId`),
   `auth.js` (cookie de sesión firmada con HMAC-SHA256), `xlsx.js` (parseo del Excel de plantillas),
   `ajustes.js` (interruptores `torneo_publico` y `subidas_abiertas`, y `estadoPublicacion`),
@@ -48,7 +52,7 @@ npm run deploy   # wrangler deploy
 ```
 
 El proyecto de Cloudflare está conectado a Git, así que un `git push` también puede desplegar.
-Los secretos (`ADMIN_PASSWORD`, `SESSION_SECRET`, `RESEND_API_KEY`) van como secretos del
+Los secretos (`ADMIN_PASSWORD`, `SESSION_SECRET`, `RESEND_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) van como secretos del
 Worker, nunca en `wrangler.toml`; en local van en `.dev.vars` (ignorado por git). En
 `wrangler.toml` solo hay variables no sensibles (`NOTIFY_EMAIL`, `FROM_EMAIL`).
 
@@ -68,6 +72,10 @@ Worker, nunca en `wrangler.toml`; en local van en `.dev.vars` (ignorado por git)
   `'1'` = publicado) y `subidas_abiertas` (`'0'` = plazo cerrado para los clubes).
 - `schema_compartidos.sql` — **`compartidos`** (`codigo`, `titulo`, `html`): páginas que solo se ven con el
   enlace `/c/<codigo>` (propuestas de calendario para el comité). Las sirve `worker/routes/compartidos.js`.
+- `schema_entradas.sql` — `entradas_tipos`, `entradas_pedidos` (`codigo` = secreto del enlace
+  `/entradas/<codigo>`; `estado` pendiente/pagado/caducado/reembolsado), `entradas_lineas`, `entradas` (un QR por
+  fila, `TC-<codigo>`) y `entradas_accesos` (cada paso por la puerta, con `dia` en hora de Madrid). Las crea también
+  `ensureEntradasTables`.
 - `schema_entregas.sql` — **`upload_links`** (una fila por equipo: `slug` único con el código aleatorio,
   `last_upload_at`, `last_upload_count`) y **`staff`** (cuerpo técnico del equipo: `nombre`, `apellidos`,
   `cargo`, `dni`). Las crea también `ensureEntregasTables` al generar los enlaces.
@@ -150,3 +158,13 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **El admin ve el torneo aunque no esté publicado**: `estadoPublicacion` deja pasar las peticiones con
   cookie de sesión válida. Si tocas las rutas públicas, mantén ese comportamiento o el panel (que usa
   `/api/equipos` y `/api/partidos`) se queda sin datos.
+- **Entradas: el pedido se confirma por dos caminos** (webhook de Stripe y la página `/entradas/<codigo>`, que
+  consulta la sesión a Stripe). `confirmarPedido` es idempotente gracias al `UPDATE … WHERE estado = 'pendiente'`:
+  solo quien cambia el estado crea las entradas y manda el email. No lo rompas.
+- **`venta_entradas` falla en CERRADO** (como `torneo_publico`): sin ajuste o sin `STRIPE_SECRET_KEY` no se vende.
+- **`/entradas/:codigo` lo sirve el Worker** (`servirPaginaConCodigo` → `mis-entradas.html`), igual que
+  `/plantilla/:slug`. No confundir con el fichero `entradas.html` (la página de compra).
+- **`STRIPE_API_BASE`** solo sirve para probar en local contra un Stripe simulado. En producción no se define.
+- **El control de acceso usa la sesión de admin**: quien escanea en la puerta necesita la contraseña del panel.
+- **`public/js/vendor/`** son librerías copiadas tal cual (`qrcode.js` MIT para pintar QR, `jsQR.js` Apache-2.0
+  para leerlos con la cámara). No las edites.

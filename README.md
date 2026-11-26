@@ -157,6 +157,7 @@ Con eso, `wrangler dev` levanta el panel en `http://localhost:8787/admin.html`.
    que haga falta en el desplegable y las sube todas seguidas.
 5. **Entregas**: los enlaces privados de los clubes y el control del plazo (ver más abajo).
 6. **Publicación**: el interruptor de modo interno (ver más abajo).
+7. **Entradas**: venta de entradas con Stripe (ver más abajo).
 
 ## Que cada club rellene su propia plantilla
 
@@ -213,6 +214,48 @@ igual en los dos modos: este interruptor no los afecta.
 
 El estado se guarda en la tabla `settings` de D1 (`torneo_publico` = `0` o `1`), que se crea con
 `schema_ajustes.sql` en el paso 1. Si esa tabla no existiera, el torneo se comporta como no publicado.
+
+## Venta de entradas (Stripe)
+
+El público compra en `turiacup.com/entradas.html`, paga en la pasarela de Stripe y recibe un email con un
+enlace privado (`/entradas/<código>`) donde están sus entradas, cada una con su QR. En la puerta se escanean
+con el móvil desde `/control-acceso.html` (hay que haber entrado antes en el panel de admin con la contraseña).
+
+### Puesta en marcha (una sola vez)
+
+1. **Cuenta de Stripe** a nombre de quien cobra (club, asociación o empresa), con su cuenta bancaria.
+2. **Tablas**: `wrangler d1 execute turiacup-db --remote --file=./schema_entradas.sql`
+   (si se te olvida, el Worker las crea solo la primera vez).
+3. **Clave secreta**: en Stripe → Desarrolladores → Claves de API, copia la «Clave secreta» y guárdala:
+   ```bash
+   wrangler secret put STRIPE_SECRET_KEY
+   ```
+   Empieza con la de **modo de prueba** (`sk_test_…`): todo funciona igual pero sin cobrar de verdad
+   (tarjeta `4242 4242 4242 4242`). Cuando esté probado, cámbiala por la real (`sk_live_…`).
+4. **Avisos de Stripe (webhook)**: en Stripe → Desarrolladores → Webhooks → «Añadir destino»:
+   - URL: `https://turiacup.com/api/stripe/webhook`
+   - Eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+     `checkout.session.expired` y `charge.refunded`.
+   - Copia el «Secreto de firma» (`whsec_…`) y guárdalo:
+     ```bash
+     wrangler secret put STRIPE_WEBHOOK_SECRET
+     ```
+   El webhook es de prueba o real según el modo de Stripe: al pasar a real hay que crearlo otra vez en modo real.
+5. En el panel → **Entradas**: crea los tipos de entrada (nombre, precio, límite opcional, si es abono)
+   y pulsa «Abrir la venta». Con la venta abierta aparece el enlace «Entradas» en la landing.
+
+### Cómo funciona
+
+- **Tipos de entrada**: una entrada normal vale para entrar una vez. Un **abono** vale para entrar una vez
+  cada día. Un tipo con entradas vendidas no se puede borrar, solo desactivar.
+- **Límite de unidades**: cuenta lo vendido más los pagos en curso (se reservan 35 minutos, lo que dura
+  la sesión de pago).
+- **Confirmación del pago**: llega por el webhook y, además, la página de «gracias» se lo pregunta a Stripe.
+  Lo que llegue primero genera las entradas y manda el email (nunca se duplican).
+- **Puerta**: verde = válida (queda registrada), naranja = ya usada (dice cuándo entró), rojo = no existe o
+  reembolsada. Si se escanea una por error, «Deshacer». También se puede teclear el código.
+- **Devoluciones**: desde el panel de Stripe. Un reembolso completo anula solo las entradas de ese pedido.
+- **Comisiones**: solo las de Stripe por cada pago. No hay cuota fija.
 
 ## Próximos pasos (fuera del alcance actual)
 

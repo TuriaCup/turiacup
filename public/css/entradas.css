@@ -1,0 +1,204 @@
+/* Venta de entradas: compra, «mis entradas» y control de acceso en la puerta. */
+
+.entradas-wrap { max-width: 760px; }
+.entradas-titulo { font-size: clamp(1.8rem, 4vw, 2.6rem); color: var(--blue-900); }
+.empty-state { color: var(--text-muted); font-style: italic; padding: 16px 0; }
+.proximamente {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 24px;
+  text-align: center;
+}
+.proximamente h2 { margin-bottom: 8px; }
+.proximamente p { color: var(--text-muted); margin: 0; }
+
+.aviso-pruebas, .aviso-cancelado {
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+.aviso-pruebas { background: #eef4ff; border: 1px solid #c8d8f5; color: #1f3f7a; }
+.aviso-cancelado { background: #fff7e6; border: 1px solid #f5dca8; color: #7a5200; }
+.aviso-pruebas[hidden], .aviso-cancelado[hidden] { display: none; }
+
+/* --- Compra --- */
+.tipos-entrada { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.tipo-entrada {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.tipo-entrada.agotado { opacity: .55; }
+.tipo-info h3 { margin: 0 0 4px; font-size: 1.1rem; color: var(--blue-900); }
+.tipo-info p { margin: 0; color: var(--text-muted); font-size: .92rem; }
+.tipo-info .quedan { color: #c0392b; font-weight: 700; margin-top: 4px; }
+.etiqueta-abono {
+  display: inline-block;
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: #fff3e6;
+  color: var(--blue-700);
+  border-radius: 999px;
+  padding: 2px 8px;
+  vertical-align: middle;
+}
+.tipo-precio { font-weight: 800; font-size: 1.15rem; color: var(--blue-900); white-space: nowrap; }
+.tipo-cantidad { display: flex; align-items: center; gap: 10px; }
+.cant-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--white);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--blue-900);
+}
+.cant-btn:hover:not(:disabled) { border-color: var(--blue-500); color: var(--blue-500); }
+.cant-btn:disabled { cursor: not-allowed; }
+.cant-num { min-width: 1.6em; text-align: center; font-weight: 800; font-size: 1.1rem; }
+
+.resumen-compra {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 14px 4px;
+  border-top: 2px solid var(--border);
+  margin-bottom: 24px;
+  font-size: 1.1rem;
+}
+.resumen-compra strong { font-size: 1.5rem; color: var(--blue-900); }
+.condiciones { font-size: .88rem; color: var(--text-muted); margin: 0; }
+.form label small { font-weight: 400; color: var(--text-muted); }
+
+@media (max-width: 560px) {
+  .tipo-entrada { grid-template-columns: 1fr auto; }
+  .tipo-info { grid-column: 1 / -1; }
+}
+
+/* --- Mis entradas --- */
+.pedido-cabecera { margin-bottom: 24px; }
+.pedido-resumen { color: var(--text-muted); font-size: .92rem; }
+.lista-entradas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.entrada-ticket {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-top: 6px solid var(--blue-500);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  break-inside: avoid;
+}
+.entrada-ticket.anulada { border-top-color: #c0392b; opacity: .7; }
+.ticket-cabecera { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.ticket-cabecera img { height: 28px; }
+.ticket-cabecera span { color: var(--text-muted); font-size: .85rem; }
+.ticket-tipo { font-weight: 800; color: var(--blue-900); margin-bottom: 8px; }
+.ticket-qr svg { width: 100%; max-width: 230px; height: auto; display: block; margin: 0 auto; }
+.ticket-anulada {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: #c0392b;
+  border: 2px dashed #f2c9c2;
+  border-radius: 8px;
+}
+.ticket-codigo { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .12em; margin-top: 8px; color: var(--text-muted); }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .section { padding: 0; }
+  .lista-entradas { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* --- Control de acceso (móvil, pantalla completa) --- */
+.control-body { background: var(--blue-900); color: var(--white); min-height: 100vh; }
+.control-app { max-width: 520px; margin: 0 auto; padding: 12px 16px 32px; }
+.control-top { display: flex; justify-content: space-between; align-items: center; padding: 6px 0 12px; }
+.control-top span { color: var(--accent); font-weight: 700; }
+.control-mensaje { background: rgba(255,255,255,.08); border-radius: var(--radius); padding: 24px; text-align: center; }
+.control-video {
+  position: relative;
+  aspect-ratio: 1;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.control-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.control-marco {
+  position: absolute;
+  inset: 18%;
+  border: 3px solid rgba(255, 183, 3, .9);
+  border-radius: 14px;
+  pointer-events: none;
+}
+.control-camara-aviso {
+  position: absolute;
+  inset: auto 0 0 0;
+  margin: 0;
+  padding: 12px;
+  background: rgba(0,0,0,.6);
+  text-align: center;
+  font-size: .95rem;
+}
+.control-camara-aviso[hidden] { display: none; }
+.control-btn { display: block; width: 100%; margin-top: 12px; font-size: 1.1rem; }
+.control-btn[hidden] { display: none; }
+.control-manual { display: flex; gap: 8px; margin-top: 16px; }
+.control-manual input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.3);
+  background: rgba(255,255,255,.08);
+  color: var(--white);
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+.control-manual .btn-ghost { color: var(--white); border-color: rgba(255,255,255,.4); padding: 10px 18px; }
+
+.control-resultado {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  z-index: 10;
+}
+.control-resultado[hidden] { display: none; }
+.res-valida { background: #1c9a5b; }
+.res-usada { background: #d98200; }
+.res-error { background: #b3261e; }
+.resultado-icono { font-size: 5rem; line-height: 1; }
+.resultado-titulo { font-size: 2.2rem; font-weight: 900; margin: 12px 0; }
+.resultado-detalle { font-size: 1.2rem; max-width: 420px; line-height: 1.5; }
+.resultado-seguir { background: var(--white); color: var(--blue-900); max-width: 320px; margin-top: 32px; }
+.resultado-deshacer {
+  margin-top: 18px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.85);
+  text-decoration: underline;
+  font: inherit;
+  cursor: pointer;
+}
+.resultado-deshacer[hidden] { display: none; }

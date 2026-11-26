@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Control de acceso — Turia Cup</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1c130a">
+<link rel="icon" type="image/png" href="/img/brand/badge-black.png">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/entradas.css">
+</head>
+<body class="control-body">
+
+<div class="control-app">
+  <header class="control-top">
+    <strong>Control de acceso</strong>
+    <span id="contadorHoy"></span>
+  </header>
+
+  <div id="sinSesion" class="control-mensaje" hidden>
+    <p>Para validar entradas tienes que entrar primero en el panel de administración con la contraseña.</p>
+    <a class="btn btn-primary" href="/admin.html">Ir al panel</a>
+  </div>
+
+  <div id="escaner" hidden>
+    <div class="control-video">
+      <video id="video" playsinline muted></video>
+      <div class="control-marco"></div>
+      <p class="control-camara-aviso" id="camaraAviso">Pulsa «Activar cámara» para empezar a escanear.</p>
+    </div>
+    <button class="btn btn-primary control-btn" id="camaraBtn">Activar cámara</button>
+
+    <form class="control-manual" id="manualForm">
+      <input type="text" id="manualCodigo" placeholder="O escribe el código de la entrada" autocomplete="off" autocapitalize="characters">
+      <button class="btn btn-ghost" type="submit">Validar</button>
+    </form>
+  </div>
+
+  <div id="resultado" class="control-resultado" hidden>
+    <div class="resultado-icono" id="resIcono"></div>
+    <div class="resultado-titulo" id="resTitulo"></div>
+    <div class="resultado-detalle" id="resDetalle"></div>
+    <button class="btn control-btn resultado-seguir" id="seguirBtn">Siguiente</button>
+    <button class="resultado-deshacer" id="deshacerBtn" hidden>Deshacer esta entrada (escaneada por error)</button>
+  </div>
+</div>
+
+<canvas id="lienzo" hidden></canvas>
+<script src="/js/utils.js"></script>
+<script src="/js/vendor/jsQR.js"></script>
+<script src="/js/control-acceso.js"></script>
+</body>
+</html>

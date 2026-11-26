@@ -23,6 +23,21 @@ import {
 } from './routes/plantilla.js';
 import { handleCompartido } from './routes/compartidos.js';
 import {
+  handleGetTiposEntrada,
+  handleComprarEntradas,
+  handleGetPedidoPublico,
+  handleStripeWebhook,
+  handleAdminResumenEntradas,
+  handleAdminVentaEntradas,
+  handleAdminCrearTipo,
+  handleAdminActualizarTipo,
+  handleAdminBorrarTipo,
+  handleAdminListPedidos,
+  handleAdminReenviarEmail,
+  handleAdminValidarEntrada,
+  handleAdminDeshacerAcceso,
+} from './routes/entradas.js';
+import {
   handleImportarEquipos,
   handleGetAjustes,
   handleUpdateAjustes,
@@ -46,11 +61,11 @@ import {
 } from './routes/admin.js';
 
 /**
- * Las páginas de /plantilla/:slug no existen como fichero, así que el Worker sirve
- * subir-plantilla.html en su lugar (y si el binding de assets fallara, redirige).
+ * Las páginas de /plantilla/:slug y /entradas/:codigo no existen como fichero, así que el Worker
+ * sirve la página HTML que toca (y si el binding de assets fallara, redirige con ?c=<código>).
  */
-async function servirPaginaPlantilla(request, env, slug) {
-  const destino = new URL('/subir-plantilla.html', request.url);
+async function servirPaginaConCodigo(request, env, fichero, slug) {
+  const destino = new URL(fichero, request.url);
 
   try {
     if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
@@ -58,7 +73,7 @@ async function servirPaginaPlantilla(request, env, slug) {
 
       // Los assets pueden contestar con una redirección a la versión sin `.html`.
       // Hay que seguirla aquí dentro: si se la devolvemos al navegador, se va a esa otra
-      // dirección y pierde el código del enlace (/plantilla/<slug>).
+      // dirección y pierde el código del enlace (/plantilla/<slug>, /entradas/<codigo>).
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get('Location');
         if (location) {
@@ -69,7 +84,7 @@ async function servirPaginaPlantilla(request, env, slug) {
       if (res.ok) {
         return new Response(res.body, {
           status: 200,
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex' },
         });
       }
     }
@@ -112,6 +127,22 @@ async function routeAdmin(request, env, pathname, method) {
 
   if (pathname === '/api/admin/entregas' && method === 'GET') return handleListEntregas(request, env);
   if (pathname === '/api/admin/entregas/enlaces' && method === 'POST') return handleGenerarEnlaces(request, env);
+
+  if (pathname === '/api/admin/entradas' && method === 'GET') return handleAdminResumenEntradas(request, env);
+  if (pathname === '/api/admin/entradas/venta' && method === 'PUT') return handleAdminVentaEntradas(request, env);
+  if (pathname === '/api/admin/entradas/tipos' && method === 'POST') return handleAdminCrearTipo(request, env);
+  if (pathname === '/api/admin/entradas/pedidos' && method === 'GET') return handleAdminListPedidos(request, env);
+  if (pathname === '/api/admin/entradas/validar' && method === 'POST') return handleAdminValidarEntrada(request, env);
+  if (pathname === '/api/admin/entradas/deshacer' && method === 'POST') return handleAdminDeshacerAcceso(request, env);
+
+  params = matchPath('/api/admin/entradas/tipos/:id', pathname);
+  if (params) {
+    if (method === 'PUT') return handleAdminActualizarTipo(request, env, params.id);
+    if (method === 'DELETE') return handleAdminBorrarTipo(request, env, params.id);
+  }
+
+  params = matchPath('/api/admin/entradas/pedidos/:id/reenviar', pathname);
+  if (params && method === 'POST') return handleAdminReenviarEmail(request, env, params.id);
 
   params = matchPath('/api/admin/entregas/historial/:id', pathname);
   if (params && method === 'GET') return handleGetHistorial(request, env, params.id);
@@ -207,7 +238,17 @@ export default {
       }
 
       params = matchPath('/plantilla/:slug', pathname);
-      if (params && method === 'GET') return servirPaginaPlantilla(request, env, params.slug);
+      if (params && method === 'GET') return servirPaginaConCodigo(request, env, '/subir-plantilla.html', params.slug);
+
+      if (pathname === '/api/entradas/tipos' && method === 'GET') return handleGetTiposEntrada(request, env);
+      if (pathname === '/api/entradas/comprar' && method === 'POST') return handleComprarEntradas(request, env);
+      if (pathname === '/api/stripe/webhook' && method === 'POST') return handleStripeWebhook(request, env);
+
+      params = matchPath('/api/entradas/pedido/:codigo', pathname);
+      if (params && method === 'GET') return handleGetPedidoPublico(request, env, params.codigo);
+
+      params = matchPath('/entradas/:codigo', pathname);
+      if (params && method === 'GET') return servirPaginaConCodigo(request, env, '/mis-entradas.html', params.codigo);
 
       params = matchPath('/c/:codigo', pathname);
       if (params && method === 'GET') return handleCompartido(request, env, params.codigo);

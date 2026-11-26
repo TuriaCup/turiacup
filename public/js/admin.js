@@ -27,6 +27,7 @@ const panels = {
   importar: document.getElementById('panelImportar'),
   entregas: document.getElementById('panelEntregas'),
   publicacion: document.getElementById('panelPublicacion'),
+  entradas: document.getElementById('panelEntradas'),
 };
 
 let loteArchivos = [];
@@ -126,6 +127,7 @@ function showTab(tab) {
   if (tab === 'importar') renderImportarTab();
   if (tab === 'entregas') renderEntregasTab();
   if (tab === 'publicacion') renderPublicacionTab();
+  if (tab === 'entradas') renderEntradasTab(); // public/js/admin-entradas.js
 }
 
 // --- Pestaña de grupos (vista previa de cómo se verán en la web) ---

@@ -52,3 +52,13 @@ form.addEventListener('submit', async (e) => {
     submitBtn.textContent = 'Enviar inscripción';
   }
 });
+
+// El enlace a «Entradas» solo aparece cuando la venta está abierta.
+fetch('/api/entradas/tipos')
+  .then((r) => (r.ok ? r.json() : null))
+  .then((d) => {
+    if (d && d.abierta && d.tipos && d.tipos.length) {
+      document.querySelectorAll('.solo-venta').forEach((el) => { el.style.display = ''; });
+    }
+  })
+  .catch(() => {});

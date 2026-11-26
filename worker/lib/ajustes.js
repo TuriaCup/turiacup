@@ -2,6 +2,7 @@ import { isAdminRequest } from './auth.js';
 
 const KEY_TORNEO_PUBLICO = 'torneo_publico';
 const KEY_SUBIDAS_ABIERTAS = 'subidas_abiertas';
+const KEY_VENTA_ENTRADAS = 'venta_entradas';
 
 const CREATE_SETTINGS_TABLE = `CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
@@ -52,6 +53,21 @@ export async function subidasAbiertas(env) {
 
 export async function setSubidasAbiertas(env, abiertas) {
   await guardarAjuste(env, KEY_SUBIDAS_ABIERTAS, abiertas);
+}
+
+/** ¿Está abierta la venta de entradas? Falla en cerrado: sin ajuste guardado, no se vende. */
+export async function ventaEntradasAbierta(env) {
+  try {
+    const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?')
+      .bind(KEY_VENTA_ENTRADAS).first();
+    return row ? row.value === '1' : false;
+  } catch {
+    return false;
+  }
+}
+
+export async function setVentaEntradas(env, abierta) {
+  await guardarAjuste(env, KEY_VENTA_ENTRADAS, abierta);
 }
 
 /**
