@@ -38,6 +38,10 @@ Base de datos: **Cloudflare D1** (`turiacup-db`, binding `DB`). Email: Resend.
 - `public/` — sitio estático servido tal cual: `index.html` (landing), `torneo.html`,
   `equipo.html`, `jugador.html`, `admin.html`, más `css/`, `js/`, `img/` y
   `plantillas/plantilla-modelo.xlsx`.
+- `public/app.html` + `js/app.js` + `css/app.css` — la **app del torneo** (`/app`): una sola página con cinco
+  pestañas abajo (Inicio, Partidos, Grupos, Equipos, Más) y fichas de equipo/partido/jugador encima. Usa las
+  mismas APIs públicas que el resto. `manifest.webmanifest` + `img/app/` la hacen instalable («Añadir a pantalla
+  de inicio»). No hay service worker a propósito: así nunca enseña resultados viejos.
 
 ## Ejecutar y desplegar
 
@@ -150,3 +154,10 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **El admin ve el torneo aunque no esté publicado**: `estadoPublicacion` deja pasar las peticiones con
   cookie de sesión válida. Si tocas las rutas públicas, mantén ese comportamiento o el panel (que usa
   `/api/equipos` y `/api/partidos`) se queda sin datos.
+- **La app navega por el hash** (`#partidos`, `#equipo/12`, `#partido/34`, `#final/plata`) y reutiliza las tablas
+  y el cuadro de `utils.js`, que enlazan a `equipo.html?id=…`: `app.js` intercepta esos clics y los convierte en
+  fichas. Si cambias el formato de esos enlaces en `utils.js`, revisa el `match` del listener de `app.js`.
+- **«Mi equipo» no tiene cuentas**: se guarda en `localStorage` (`tc-fav`, `tc-cat`) del móvil. El enlace
+  `/app?equipo=<id>` lo deja marcado (sirve para mandarlo al WhatsApp de cada club o en un QR).
+- **`clasificacionPorPosicionesHtml` y `fasePorPosicion` viven en `utils.js`** (las usan `torneo.html` y la app).
+  La regla de qué puesto va a Oro/Plata/Bronce está ahí, en un solo sitio.
