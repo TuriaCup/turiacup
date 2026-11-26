@@ -712,42 +712,7 @@
     pintar();
   });
 
-  // Medidor escondido (temporal): tres toques seguidos en el escudo de arriba enseñan las medidas que da el móvil.
-  // Sirve para ajustar el menú inferior de la app instalada en el iPhone. Quitar cuando esté resuelto.
-  let toquesEscudo = [];
-  function medidor() {
-    const prueba = document.createElement('div');
-    prueba.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;visibility:hidden;'
-      + 'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
-    document.body.appendChild(prueba);
-    const cs = getComputedStyle(prueba);
-    const caja = (el) => { const r = el.getBoundingClientRect(); return `${Math.round(r.top)}–${Math.round(r.bottom)}`; };
-    const filas = [
-      ['Modo', document.documentElement.className || 'Safari'],
-      ['standalone', String(navigator.standalone)],
-      ['Pantalla', `${screen.width}×${screen.height}`],
-      ['Ventana', `${innerWidth}×${innerHeight}`],
-      ['visualViewport', window.visualViewport ? `${Math.round(visualViewport.width)}×${Math.round(visualViewport.height)} (arriba ${Math.round(visualViewport.offsetTop)})` : '—'],
-      ['html', `${document.documentElement.clientHeight}`],
-      ['Márgenes seguros', `arriba ${cs.paddingTop} · abajo ${cs.paddingBottom}`],
-      ['App', caja(document.getElementById('app'))],
-      ['Menú', caja($tabs)],
-      ['Agente', navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90)],
-    ];
-    prueba.remove();
-    $sheet.innerHTML = `<div class="a-sheet" role="dialog" aria-label="Medidas"><div class="a-asa"></div><h2>Medidas</h2>
-      <table style="width:100%;font-size:.82rem;border-collapse:collapse">${filas.map(([k, v]) => `<tr><td style="padding:4px 8px 4px 0;color:var(--a-gris);white-space:nowrap">${k}</td><td style="padding:4px 0;font-weight:600;overflow-wrap:anywhere">${escapeHtml(v)}</td></tr>`).join('')}</table>
-      <p style="color:var(--a-gris);font-size:.8rem;margin:10px 0 0">Haz una captura y mándala. Toca fuera para cerrar.</p></div>`;
-    $sheet.hidden = false;
-  }
-
   document.getElementById('app').addEventListener('click', async (e) => {
-    if (e.target.closest('.a-logo')) {
-      const ahora = Date.now();
-      toquesEscudo = toquesEscudo.filter((x) => ahora - x < 1200).concat(ahora);
-      if (toquesEscudo.length >= 3) { toquesEscudo = []; medidor(); }
-      return;
-    }
     // Pulsar la pestaña en la que ya estás la actualiza (la app instalada no tiene botón de recargar).
     const pestana = e.target.closest('.app-tabs a[aria-current="page"]');
     if (pestana && ruta().tipo === 'vista' && `#${ruta().nombre}` === pestana.getAttribute('href')) {
