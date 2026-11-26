@@ -29,7 +29,7 @@
   // /app?categoria=U10 abre directamente esa categoría.
   const qs = new URLSearchParams(location.search);
   const catUrl = (qs.get('categoria') || '').toUpperCase();
-  if (CATEGORIAS.includes(catUrl)) categoria = catUrl;
+  if (CATEGORIAS.includes(catUrl)) { categoria = catUrl; escribir('tc-cat', categoria); }
 
   const ui = { dia: null, filtro: 'todos', grupo: null, fase: 'oro', busca: '', campos: {} };
 
@@ -479,7 +479,19 @@
   let ultimaPestana = 'inicio';
   let temporizador = null;
   let pintando = 0;
-  let navegado = false; // si se ha navegado dentro de la app («atrás» no debe sacar de la web)
+  // «Atrás»: cada paso dentro de la app se numera en history.state; con el paso 0 se vuelve a la página de la web
+  // desde la que se entró (o a la portada). La app instalada sin pasos previos no muestra la flecha en las pestañas.
+  const instalada = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  let vieneDeLaWeb = false;
+  try { vieneDeLaWeb = Boolean(document.referrer) && new URL(document.referrer).origin === location.origin; } catch { vieneDeLaWeb = false; }
+  let paso = 0;
+  function numerarPaso(nuevo) {
+    const s = history.state;
+    if (s && typeof s.paso === 'number') paso = s.paso;
+    else { paso = nuevo ? paso + 1 : 0; history.replaceState({ paso }, ''); }
+  }
+  numerarPaso(false);
+  let saltoSinPaso = false; // un location.replace no es un paso nuevo
 
   function ruta() {
     const [nombre, arg] = location.hash.replace(/^#/, '').split('/');
@@ -497,7 +509,8 @@
       $top.innerHTML = `<button type="button" class="a-atras" data-atras aria-label="Volver">${ICO.atras}</button>
         <div class="a-titulo"><b>${escapeHtml(ficha ? ficha.titulo : '')}</b>${ficha && ficha.sub ? `<small>${escapeHtml(ficha.sub)}</small>` : ''}</div>`;
     } else {
-      $top.innerHTML = `<img class="a-logo" src="/img/brand/badge-orange.png" alt="">
+      const flecha = paso > 0 || vieneDeLaWeb || !instalada;
+      $top.innerHTML = `${flecha ? `<button type="button" class="a-atras" data-atras aria-label="Volver">${ICO.atras}</button>` : ''}<img class="a-logo" src="/img/brand/badge-orange.png" alt="">
         <div class="a-titulo"><b>Turia Cup</b><small>Resultados y clasificaciones</small></div>
         <button type="button" class="a-cat" data-elegir-cat aria-label="Cambiar de categoría">${escapeHtml(categoria)}${ICO.abajo}</button>`;
     }
@@ -603,7 +616,8 @@
 
   // ---------- Eventos ----------
   window.addEventListener('hashchange', () => {
-    navegado = true;
+    numerarPaso(!saltoSinPaso);
+    saltoSinPaso = false;
     pintar();
   });
 
@@ -641,20 +655,22 @@
       $sheet.hidden = true;
       pintar();
     } else if ('atras' in d) {
-      if (navegado) history.back();
-      else location.hash = ultimaPestana;
+      if (paso > 0) history.back();
+      else if (ruta().tipo === 'ficha') { saltoSinPaso = true; location.replace(`#${ultimaPestana}`); }
+      else if (vieneDeLaWeb) history.back();
+      else location.href = '/';
     } else if (d.campo) {
       ui.campos[d.sede] = d.campo; pintar({ silencioso: true });
     } else if (d.dia) {
       ui.dia = d.dia; pintar({ silencioso: true });
     } else if (d.filtro) {
       ui.filtro = d.filtro;
-      if (ruta().arg === 'vivo') history.replaceState(null, '', '#partidos');
+      if (ruta().arg === 'vivo') history.replaceState(history.state, '', '#partidos');
       pintar({ silencioso: true });
     } else if (d.grupo) {
       ui.grupo = d.grupo; pintar({ silencioso: true });
     } else if (d.fase) {
-      history.replaceState(null, '', `#final/${d.fase}`); pintar({ silencioso: true });
+      history.replaceState(history.state, '', `#final/${d.fase}`); pintar({ silencioso: true });
     } else if ('cerrarAviso' in d) {
       if (aviso) escribir('tc-aviso-cerrado', aviso.publicado_at);
       $banner.hidden = true;
@@ -670,7 +686,7 @@
 
   // ---------- Arranque ----------
   async function arrancar() {
-    if (location.search) history.replaceState(null, '', `${location.pathname}${location.hash}`);
+    if (location.search) history.replaceState(history.state, '', `${location.pathname}${location.hash}`);
     pintar();
     cargarAviso();
   }

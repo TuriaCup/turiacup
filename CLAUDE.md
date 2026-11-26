@@ -166,3 +166,11 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
   `GET /api/aviso` lo sirve a la app, que lo consulta cada 30 s. Respeta el modo interno como las demás rutas
   públicas. Quien lo cierra en el móvil no lo vuelve a ver hasta que se publica otro (se compara `publicado_at`),
   así que corregir una errata también lo vuelve a enseñar a todos.
+- **Móvil = app, ordenador = páginas de siempre**: `public/js/redireccion.js` (en el `<head>` de `torneo`, `equipo`,
+  `partido`, `jugador`, `cuadro` y `app`, justo DESPUÉS del meta viewport) manda los móviles (≤ 800 px o pantalla
+  con lado corto ≤ 600 px) a la ficha equivalente de `/app#…` y los ordenadores de `/app` a la página clásica. La app
+  instalada nunca se redirige. El menú hace lo mismo con CSS: `.nav-solo-ordenador` («Clasificación y equipos») y
+  `.nav-solo-movil` («App del torneo»). Si añades una página del torneo, añade también su equivalencia ahí.
+- **«Atrás» en la app**: cada paso se numera en `history.state.paso`. Con el paso 0, la flecha vuelve a la página de la
+  web de la que se vino (o a `/`). Si reescribes la URL con `history.replaceState`, pasa `history.state` para no
+  perder la numeración.
