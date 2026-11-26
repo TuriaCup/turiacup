@@ -273,3 +273,16 @@ body.app-body { background: var(--a-fondo); overscroll-behavior-y: none; -webkit
 .a-cuadros > span small { color: #cdbfb2; font-size: .78rem; }
 .a-cuadros > div { display: flex; gap: 6px; }
 .a-cuadros a.fase-chip { text-decoration: none; padding: 6px 12px; font-size: .82rem; }
+
+/* Cómo llegar */
+.a-sede { display: grid; }
+.a-sede-foto { position: relative; display: block; }
+.a-sede-foto img { display: block; width: 100%; height: auto; aspect-ratio: 2572 / 1600; object-fit: cover; }
+.a-sede-foto span { position: absolute; right: 10px; bottom: 10px; background: rgba(28, 19, 10, .8); color: #fff; font-size: .75rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+.a-sede-txt { padding: 14px; }
+.a-sede-txt p { margin: 0 0 8px; font-size: .9rem; }
+.a-sede-ver { display: block; text-align: center; margin-top: 10px; color: var(--a-naranja-osc); font-weight: 700; font-size: .85rem; text-decoration: none; }
+.a-sede-plano { border-top: 1px solid var(--a-linea); padding: 14px; }
+.a-sede-plano > b { display: block; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--a-gris); margin-bottom: 10px; }
+.a-sede-plano .a-chips { margin: 0 0 10px; padding: 0; flex-wrap: wrap; }
+.a-sede-plano .miniplano { margin-bottom: 0; }

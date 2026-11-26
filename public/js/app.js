@@ -6,10 +6,9 @@
 (function () {
   const CATEGORIAS = ['U9', 'U10', 'U11', 'U12'];
   const FASES = { oro: 'Copa Oro', plata: 'Copa Plata', bronce: 'Copa Bronce' };
-  // Cada refresco son ~3 peticiones al Worker: con partidos en juego cada 30 s, si no cada 2 min.
+  // Cada refresco es 1 petición al Worker (/api/app): con partidos en juego cada 30 s, si no cada 2 min.
   const REFRESCO_MS = 30000;
   const REFRESCO_SIN_VIVOS_MS = 120000;
-  const REFRESCO_AVISO_MS = 60000;
   const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -37,20 +36,19 @@
   const ui = { dia: null, filtro: 'todos', grupo: null, fase: 'oro', busca: '', campos: {} };
 
   // ---------- Datos ----------
+  let aviso = null; // aviso de la organización (llega junto con los datos de la categoría)
   const cache = {};       // por categoría: { equipos, partidos, clasificacion, cargado }
   const favCache = { id: null, data: null };
   let estado = { publicado: true, visible: true };
 
   async function cargarCategoria(cat, forzar) {
     if (cache[cat] && cache[cat].cargado && !forzar) return cache[cat];
-    const c = encodeURIComponent(cat);
-    const [eq, pa, cl] = await Promise.all([
-      fetchJson(`/api/equipos?categoria=${c}`),
-      fetchJson(`/api/partidos?categoria=${c}`),
-      fetchJson(`/api/clasificacion?categoria=${c}`),
-    ]);
-    estado = { publicado: eq.publicado, visible: eq.visible };
-    cache[cat] = { equipos: eq.equipos || [], partidos: pa.partidos || [], clasificacion: cl.clasificacion || [], cargado: true };
+    // Una sola petición con todo (equipos, partidos, clasificación y aviso): ver handleApp en el Worker.
+    const d = await fetchJson(`/api/app?categoria=${encodeURIComponent(cat)}`);
+    estado = { publicado: d.publicado, visible: d.visible };
+    cache[cat] = { equipos: d.equipos || [], partidos: d.partidos || [], clasificacion: d.clasificacion || [], cargado: true };
+    aviso = d.aviso || null;
+    pintarBanner();
     if (cat === categoria) unaSede = new Set(cache[cat].partidos.map((m) => sinCampo(m.venue)).filter(Boolean)).size <= 1;
     return cache[cat];
   }
@@ -331,10 +329,8 @@
   // En directo: los partidos en juego de TODAS las categorías (la elegida, primero).
   async function vistaDirecto() {
     const orden = [categoria, ...CATEGORIAS.filter((c) => c !== categoria)];
-    const res = await Promise.all(orden.map((c) => (c === categoria
-      ? cargarCategoria(c).then((d) => d.partidos)
-      : fetchJson(`/api/partidos?categoria=${encodeURIComponent(c)}`).then((d) => d.partidos || []).catch(() => []))));
-    const porCat = orden.map((c, i) => ({ c, ps: [...res[i]].sort(porFecha) }));
+    const { partidos: pendientesTodos = [] } = await fetchJson('/api/directo'); // sin terminar, todas las categorías
+    const porCat = orden.map((c) => ({ c, ps: pendientesTodos.filter((m) => m.category === c).sort(porFecha) }));
     const conVivos = porCat.filter((x) => x.ps.some(enJuego));
     directoConVivos = conVivos.length > 0;
     if (conVivos.length) {
@@ -461,7 +457,8 @@
           <div class="a-inc"><i class="a-inc-${e.type}"></i><span>${TEXTO_INC[e.type] || ''} · <a href="#jugador/${e.player_id}">${escapeHtml(e.nombre)} ${escapeHtml(e.apellidos)}</a></span>
           <small><a href="#equipo/${e.team_id}">${escapeHtml(Number(e.team_id) === Number(m.home_team_id) ? m.home_team_name : m.away_team_name)}</a></small></div>`).join('')}</div>` : ''}
         ${m.venue ? `${seccion('Dónde se juega')}<div class="a-card a-plano">${miniPlanoHtml(m.venue) || `<p>${escapeHtml(m.venue)}</p>`}
-          <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${sinCampo(m.venue)} Valencia`)}">Abrir en Google Maps</a></div>` : ''}
+          <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="${rutaMaps(sedeDe(m.venue).destino)}">Cómo llegar a ${escapeHtml(sedeDe(m.venue).nombre)}</a>
+          <a class="a-sede-ver" href="${enlaceCampo(m.venue)}">Ver la instalación: parking, entrada y campos</a></div>` : ''}
         ${live ? '<p class="a-nota">El marcador se actualiza solo.</p>' : ''}`,
     };
   }
@@ -505,22 +502,44 @@
     };
   }
 
+  // Cómo llegar: todas las instalaciones del torneo (miniplano.js → SEDES_TORNEO), primero las de la categoría elegida.
+  // Para cada una: mapa aéreo si lo hay, por dónde se entra, botón de ruta en Google Maps y el plano de los campos.
+  const rutaMaps = (destino) => `https://www.google.com/maps/dir/?api=1&destination=${enc(destino)}`;
+  const buscarMaps = (destino) => `https://www.google.com/maps/search/?api=1&query=${enc(destino)}`;
+  function sedeDe(venue) {
+    const clave = window.sedeDeCampo ? sedeDeCampo(venue) : null;
+    const conocida = clave && (window.SEDES_TORNEO || []).find((s) => s.clave === clave);
+    if (conocida) return conocida;
+    const nombre = sinCampo(venue) || venue;
+    return { clave: nombre, nombre, destino: `${nombre}, Valencia` };
+  }
+
   async function fichaSedes(campoPedido) {
     const d = await cargarCategoria(categoria);
-    if (campoPedido) ui.campos[sinCampo(campoPedido)] = campoPedido;
+    if (campoPedido) ui.campos[sedeDe(campoPedido).clave] = campoPedido;
     const campos = [...new Set(d.partidos.map((m) => m.venue).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
-    const sedes = [...new Set(campos.map(sinCampo))].sort((a, b) => a.localeCompare(b, 'es'));
-    if (!sedes.length) return { titulo: 'Cómo llegar', sub: categoria, html: '<p class="a-vacio">Los campos se publicarán junto con el calendario.</p>' };
+    const sedes = [...(window.SEDES_TORNEO || [])];
+    for (const c of campos) { const s = sedeDe(c); if (!sedes.some((x) => x.clave === s.clave)) sedes.push(s); }
+    const usadas = new Set(campos.map((c) => sedeDe(c).clave));
+    sedes.sort((x, y) => Number(usadas.has(y.clave)) - Number(usadas.has(x.clave)));
     return {
-      titulo: 'Cómo llegar', sub: categoria,
+      titulo: 'Cómo llegar', sub: 'Instalaciones del torneo',
       html: sedes.map((s) => {
-        const suyos = campos.filter((c) => sinCampo(c) === s);
-        const elegido = suyos.includes(ui.campos[s]) ? ui.campos[s] : suyos[0];
-        const plano = miniPlanoHtml(elegido);
-        return `${seccion(s)}<div class="a-card a-plano">
-          ${suyos.length > 1 ? `<div class="a-chips">${suyos.map((c) => `<button type="button" class="a-chip" data-sede="${escapeHtml(s)}" data-campo="${escapeHtml(c)}" aria-pressed="${c === elegido}">${escapeHtml(c.replace(s, '').replace(/^[\s·\-–,]+/, '') || c)}</button>`).join('')}</div>` : ''}
-          ${plano}
-          <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s} Valencia`)}">Abrir en Google Maps</a></div>`;
+        const suyos = campos.filter((c) => sedeDe(c).clave === s.clave);
+        const elegido = suyos.includes(ui.campos[s.clave]) ? ui.campos[s.clave] : suyos[0];
+        const plano = elegido ? miniPlanoHtml(elegido) : '';
+        return `${seccion(s.nombre)}<div class="a-card a-sede">
+          ${s.imagen ? `<a class="a-sede-foto" href="${escapeHtml(s.imagenGrande || s.imagen)}" target="_blank" rel="noopener"><img src="${escapeHtml(s.imagen)}" alt="Vista aérea de ${escapeHtml(s.nombre)} con los campos, el parking y la entrada" loading="lazy"><span>Ampliar</span></a>` : ''}
+          <div class="a-sede-txt">
+            ${s.entrada ? `<p>${escapeHtml(s.entrada)}</p>` : ''}
+            ${usadas.has(s.clave) ? '' : `<p class="a-gris">En ${escapeHtml(categoria)} no hay partidos en esta instalación.</p>`}
+            <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="${rutaMaps(s.destino)}">Cómo llegar</a>
+            <a class="a-sede-ver" target="_blank" rel="noopener" href="${buscarMaps(s.destino)}">Ver en Google Maps</a>
+          </div>
+          ${plano ? `<div class="a-sede-plano"><b>Dentro de la instalación</b>
+            ${suyos.length > 1 ? `<div class="a-chips">${suyos.map((c) => `<button type="button" class="a-chip" data-sede="${escapeHtml(s.clave)}" data-campo="${escapeHtml(c)}" aria-pressed="${c === elegido}">${escapeHtml(campoCorto(c))}</button>`).join('')}</div>` : ''}
+            ${plano}</div>` : ''}
+        </div>`;
       }).join(''),
     };
   }
@@ -666,11 +685,6 @@
   }
 
   // ---------- Aviso de la organización (banner arriba, se escribe en el panel → Avisos) ----------
-  let aviso = null;
-  async function cargarAviso() {
-    try { ({ aviso } = await fetchJson('/api/aviso')); } catch { /* sin conexión: se deja el que hubiera */ }
-    pintarBanner();
-  }
   function pintarBanner() {
     // Quien lo cierra no lo vuelve a ver… hasta que se publica uno nuevo (otra fecha de publicación).
     if (!aviso || leer('tc-aviso-cerrado') === aviso.publicado_at) { $banner.hidden = true; return; }
@@ -682,8 +696,6 @@
       <button type="button" data-cerrar-aviso aria-label="Cerrar aviso">×</button>`;
     $banner.hidden = false;
   }
-  setInterval(() => { if (!document.hidden) cargarAviso(); }, REFRESCO_AVISO_MS);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarAviso(); });
 
   // ---------- Eventos ----------
   window.addEventListener('hashchange', () => {
@@ -756,7 +768,6 @@
   async function arrancar() {
     if (location.search) history.replaceState(history.state, '', `${location.pathname}${location.hash}`);
     pintar();
-    cargarAviso();
   }
   arrancar();
 }());

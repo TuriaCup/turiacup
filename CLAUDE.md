@@ -178,8 +178,18 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
   Las rutas admiten la categoría al final (`#grupos/C/U11`, `#final/oro/U10`, `#inicio//U12`) y, si es otra, la app
   cambia de categoría sola; `#sedes/<campo>` abre el mapa con ese campo marcado. Tras aplicar el grupo o el campo
   del hash, se quita del hash (`replaceState`) para que el refresco automático no deshaga lo que elija el usuario.
-- **Refresco de la app y límite de Cloudflare**: cada refresco son ~3 peticiones al Worker. Se refresca cada 30 s solo
-  si hay partidos en juego (o en la pestaña En directo con alguno en juego) y cada 2 min si no; el aviso, cada minuto.
-  El plan gratuito de Workers admite 100.000 peticiones al día: no bajes estos tiempos sin mirar el plan.
-- **En directo** junta los partidos en juego de las cuatro categorías (pide `/api/partidos` de cada una). En la fase
+- **Plan gratuito de Cloudflare (100.000 peticiones al Worker y 5 M de filas leídas de D1 al día)**. Se esperan
+  1.500-2.000 visitas, así que:
+  - la app pide todo en UNA petición, `GET /api/app?categoria=` (equipos + partidos + clasificación + aviso), y la
+    pestaña En directo usa `GET /api/directo` (partidos sin terminar de todas las categorías);
+  - refresca cada 30 s solo con partidos en juego y cada 2 min si no;
+  - `conCache` (`worker/index.js`) guarda 15 s en la caché del borde las respuestas públicas publicadas, así que
+    D1 se lee unas pocas veces por minuto aunque haya cientos de móviles. El admin (cookie válida) se la salta.
+    Consecuencia: tras cambiar algo, el público puede tardar hasta 15 s en verlo (y hasta 15 s en dejar de ver el
+    torneo al volver a modo interno). Los ficheros de `public/` no cuentan como peticiones.
+- **En directo** junta los partidos en juego de las cuatro categorías. En la fase
   final, la etiqueta del partido incluye la copa («Copa Oro · Semifinal · 2»), también en `matchCardHtml` de `utils.js`.
+- **Cómo llegar**: las instalaciones están en `SEDES_TORNEO` (`public/js/miniplano.js`): nombre, `destino` (lo que se
+  busca en Google Maps para la ruta), texto de la entrada e imagen aérea. Se muestran siempre todas, primero las de la
+  categoría elegida. Un campo se asigna a su instalación por palabra clave (`detectar`: «camarena»/«resort», «cracks»,
+  «beniferri»).
