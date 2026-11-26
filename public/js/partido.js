@@ -51,7 +51,7 @@ async function load() {
       ${publicado ? '' : avisoInternoHtml()}
       <div class="ficha-marcador">
         ${equipo(m.home_team_id, m.home_team_name, m.home_logo)}
-        <div class="ficha-score">${(m.played || m.live) ? `${m.home_score ?? 0} - ${m.away_score ?? 0}` : 'vs'}</div>
+        <div class="ficha-score">${(m.played || m.live) ? `${m.home_score ?? 0} - ${m.away_score ?? 0}` : 'vs'}${m.home_pen != null && m.away_pen != null ? `<small class="ficha-pen">Penaltis ${m.home_pen} - ${m.away_pen}</small>` : ''}</div>
         ${equipo(m.away_team_id, m.away_team_name, m.away_logo)}
       </div>
       <p class="ficha-info">${info.map(escapeHtml).join(' · ')}${m.played ? '' : (m.live ? '' : ' · Por jugar')}</p>

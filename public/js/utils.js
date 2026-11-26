@@ -76,7 +76,8 @@ function matchCardHtml(m, miId, destacar) {
   const donde = m.venue ? `📍 ${m.venue}` : '';
   const etapa = m.round_name || (m.group_name ? `Grupo ${m.group_name}` : '');
   const enJuego = live ? '<div class="match-live">● EN JUEGO</div>' : '';
-  const meta = [[cuando, etapa].filter(Boolean).join(' · '), donde].filter(Boolean);
+  const penaltis = m.home_pen != null && m.away_pen != null ? `Penaltis: ${m.home_pen} - ${m.away_pen}` : '';
+  const meta = [penaltis, [cuando, etapa].filter(Boolean).join(' · '), donde].filter(Boolean);
 
   const fila = (id, nombre, logo, goles) => `
     <div class="mc-row${esMio(id) ? ' mc-yo' : ''}">

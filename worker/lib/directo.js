@@ -19,9 +19,11 @@ export async function ensureDirecto(env) {
     env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_match_events_match ON match_events (match_id)'),
   ]);
   // Huecos de la fase final: «Mejor primero», «Ganador Octavo 1»… mientras no hay equipo asignado.
-  for (const col of ['home_label', 'away_label']) {
+  // y penaltis + a qué partido pasa el ganador / el perdedor (triangular).
+  for (const [col, tipo] of [['home_label', 'TEXT'], ['away_label', 'TEXT'], ['home_pen', 'INTEGER'], ['away_pen', 'INTEGER'],
+    ['winner_to', 'INTEGER'], ['winner_slot', 'TEXT'], ['loser_to', 'INTEGER'], ['loser_slot', 'TEXT']]) {
     try {
-      await env.DB.prepare(`ALTER TABLE matches ADD COLUMN ${col} TEXT`).run();
+      await env.DB.prepare(`ALTER TABLE matches ADD COLUMN ${col} ${tipo}`).run();
     } catch {
       // ya existe
     }

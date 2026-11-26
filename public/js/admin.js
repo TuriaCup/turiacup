@@ -1461,7 +1461,10 @@ async function accionDirecto(matchId, accion, datos = {}) {
   const feedback = () => document.getElementById('directoFeedback');
   const opciones = {
     iniciar: [`/api/admin/partidos/${matchId}/iniciar`, { method: 'POST' }],
-    finalizar: [`/api/admin/partidos/${matchId}/finalizar`, { method: 'POST' }],
+    finalizar: [`/api/admin/partidos/${matchId}/finalizar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ home_pen: datos.home_pen ?? null, away_pen: datos.away_pen ?? null }),
+    }],
     evento: [`/api/admin/partidos/${matchId}/eventos`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ player_id: datos.player_id, type: datos.type }),
@@ -1555,6 +1558,13 @@ async function toggleResultadoPanel(matchId, btn) {
             <input type="number" min="0" id="awayScoreInput" value="${partido.away_score ?? 0}">
             <strong>${escapeHtml(away.equipo.name)}</strong>
           </div>
+          ${partido.phase !== 'grupos' ? `
+          <div class="resultado-scores resultado-pen">
+            <span>Penaltis (solo si hay empate)</span>
+            <input type="number" min="0" id="homePenInput" value="${partido.home_pen ?? ''}">
+            -
+            <input type="number" min="0" id="awayPenInput" value="${partido.away_pen ?? ''}">
+          </div>` : ''}
 
           <div class="goal-team-block">
             <h4>Goleadores — ${escapeHtml(home.equipo.name)}</h4>
@@ -1591,6 +1601,10 @@ async function guardarResultado(matchId) {
 
   const home_score = Number(panel.querySelector('#homeScoreInput').value);
   const away_score = Number(panel.querySelector('#awayScoreInput').value);
+  const penH = panel.querySelector('#homePenInput');
+  const penA = panel.querySelector('#awayPenInput');
+  const home_pen = penH && penH.value !== '' ? Number(penH.value) : null;
+  const away_pen = penA && penA.value !== '' ? Number(penA.value) : null;
 
   const goals = [];
   panel.querySelectorAll('.goal-row').forEach((row) => {
@@ -1603,7 +1617,7 @@ async function guardarResultado(matchId) {
     await fetchJson(`/api/admin/partidos/${matchId}/resultado`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ home_score, away_score, goals }),
+      body: JSON.stringify({ home_score, away_score, home_pen, away_pen, goals }),
     });
     await loadPartidosList();
   } catch (err) {
@@ -1636,7 +1650,22 @@ panels.partidos.addEventListener('click', async (e) => {
     if (confirm(aviso)) await accionDirecto(id, 'reiniciar');
   } else if (action === 'finalizar-partido') {
     const d = directoActual;
-    if (confirm(`¿Finalizar el partido con el resultado ${d.partido.home_score} - ${d.partido.away_score}? Se guardará como resultado oficial.`)) {
+    const p = d.partido;
+    const eliminatoria = (p.winner_to != null || p.loser_to != null) && p.home_score === p.away_score;
+    if (eliminatoria) {
+      // Eliminatoria en empate: se piden los penaltis para saber quién pasa.
+      const h = prompt(`Empate ${p.home_score} - ${p.away_score} en eliminatoria.\nPenaltis marcados por ${p.home_team_name}:`);
+      if (h === null) return;
+      const a = prompt(`Penaltis marcados por ${p.away_team_name}:`);
+      if (a === null) return;
+      if (!/^\d+$/.test(h.trim()) || !/^\d+$/.test(a.trim()) || Number(h) === Number(a)) {
+        alert('Escribe dos números distintos (no puede acabar en empate en los penaltis).');
+        return;
+      }
+      if (confirm(`¿Finalizar ${p.home_score} - ${p.away_score} (penaltis ${h} - ${a})? Pasará a la siguiente ronda ${Number(h) > Number(a) ? p.home_team_name : p.away_team_name}.`)) {
+        await accionDirecto(id, 'finalizar', { home_pen: Number(h), away_pen: Number(a) });
+      }
+    } else if (confirm(`¿Finalizar el partido con el resultado ${p.home_score} - ${p.away_score}? Se guardará como resultado oficial.`)) {
       await accionDirecto(id, 'finalizar');
     }
   } else if (action === 'edit-partido') {

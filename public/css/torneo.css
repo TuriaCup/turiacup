@@ -318,3 +318,5 @@ button.fase-tab { font: inherit; font-weight: 800; cursor: pointer; }
   #sectionTabs { gap: 0; }
   #sectionTabs .tab-btn { flex: 1 1 auto; padding: 12px 4px; font-size: .84rem; }
 }
+
+.ficha-pen { display: block; font-size: .8rem; font-weight: 600; color: var(--text-muted); margin-top: 2px; }

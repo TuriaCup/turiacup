@@ -2,6 +2,7 @@ import { jsonResponse, clean, parseId } from '../lib/http.js';
 import { parseRosterExcel } from '../lib/xlsx.js';
 import { isTorneoPublico, setTorneoPublico, subidasAbiertas, setSubidasAbiertas } from '../lib/ajustes.js';
 import { ensureDirecto } from '../lib/directo.js';
+import { faltanPenaltis, propagarEliminatoria } from '../lib/eliminatorias.js';
 import { setProfesional } from '../lib/profesionales.js';
 import { ensureEntregasTables, ensureIntolerancias, construirSlug, getPlantillaDeEquipo } from '../lib/entregas.js';
 
@@ -527,8 +528,9 @@ export async function handleResultadoPartido(request, env, idParam) {
   const id = parseId(idParam);
   if (!id) return jsonResponse({ error: 'Id de partido inválido.' }, 400);
 
+  await ensureDirecto(env);
   const match = await env.DB.prepare(
-    'SELECT id, home_team_id, away_team_id FROM matches WHERE id = ?'
+    'SELECT id, phase, home_team_id, away_team_id, winner_to, loser_to FROM matches WHERE id = ?'
   ).bind(id).first();
   if (!match) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
   if (!match.home_team_id || !match.away_team_id) {
@@ -542,6 +544,17 @@ export async function handleResultadoPartido(request, env, idParam) {
   const away_score = Number(payload.away_score);
   if (!Number.isInteger(home_score) || home_score < 0 || !Number.isInteger(away_score) || away_score < 0) {
     return jsonResponse({ error: 'El resultado debe ser un número entero no negativo.' }, 400);
+  }
+  // Penaltis (solo fase final). Vacíos = sin penaltis.
+  const pen = (v) => (v === '' || v == null ? null : Number(v));
+  const home_pen = match.phase === 'grupos' ? null : pen(payload.home_pen);
+  const away_pen = match.phase === 'grupos' ? null : pen(payload.away_pen);
+  for (const v of [home_pen, away_pen]) {
+    if (v != null && (!Number.isInteger(v) || v < 0)) return jsonResponse({ error: 'Los penaltis deben ser números enteros no negativos.' }, 400);
+  }
+  if ((home_pen == null) !== (away_pen == null)) return jsonResponse({ error: 'Pon los penaltis de los dos equipos.' }, 400);
+  if (faltanPenaltis(match, home_score, away_score, home_pen, away_pen)) {
+    return jsonResponse({ error: 'Es una eliminatoria y ha acabado en empate: pon el resultado de los penaltis (sin empate).' }, 400);
   }
 
   const goalsInput = Array.isArray(payload.goals) ? payload.goals : [];
@@ -575,10 +588,10 @@ export async function handleResultadoPartido(request, env, idParam) {
     }
   }
 
-  await ensureDirecto(env);
+  const empate = home_score === away_score;
   const statements = [
-    env.DB.prepare('UPDATE matches SET home_score = ?, away_score = ?, played = 1 WHERE id = ?')
-      .bind(home_score, away_score, id),
+    env.DB.prepare('UPDATE matches SET home_score = ?, away_score = ?, home_pen = ?, away_pen = ?, played = 1 WHERE id = ?')
+      .bind(home_score, away_score, empate ? home_pen : null, empate ? away_pen : null, id),
     env.DB.prepare('DELETE FROM goals WHERE match_id = ?').bind(id),
     env.DB.prepare('DELETE FROM match_live WHERE match_id = ?').bind(id),
     env.DB.prepare("DELETE FROM match_events WHERE match_id = ? AND type IN ('gol', 'propia')").bind(id),
@@ -590,6 +603,7 @@ export async function handleResultadoPartido(request, env, idParam) {
     );
   }
   await env.DB.batch(statements);
+  await propagarEliminatoria(env, id);   // el ganador pasa a su hueco del siguiente partido
 
   return jsonResponse({ ok: true });
 }

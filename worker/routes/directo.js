@@ -2,11 +2,12 @@ import { jsonResponse, parseId } from '../lib/http.js';
 import {
   ensureDirecto, recalcularMarcador, listarEventos, sincronizarOficial, importarGolesComoEventos, TIPOS_EVENTO,
 } from '../lib/directo.js';
+import { faltanPenaltis, propagarEliminatoria, deshacerEliminatoria } from '../lib/eliminatorias.js';
 
 async function getPartido(env, id) {
   return env.DB.prepare(
     `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
-            m.home_score, m.away_score, m.played, m.scheduled_at, m.venue,
+            m.home_score, m.away_score, m.home_pen, m.away_pen, m.played, m.scheduled_at, m.venue, m.winner_to, m.loser_to,
             COALESCE(ht.name, m.home_label, 'Por definir') AS home_team_name, ht.logo_url AS home_logo,
             COALESCE(at.name, m.away_label, 'Por definir') AS away_team_name, at.logo_url AS away_logo,
             ml.match_id IS NOT NULL AS live
@@ -119,14 +120,24 @@ export async function handleFinalizarPartido(request, env, idParam) {
   if (!partido.live) return jsonResponse({ error: 'El partido no está en juego.' }, 409);
 
   const marcador = await recalcularMarcador(env, partido);
+  let body = {};
+  try { body = await request.json(); } catch { body = {}; }
+  const pen = (v) => (v === '' || v == null ? null : Number(v));
+  const home_pen = pen(body.home_pen);
+  const away_pen = pen(body.away_pen);
+  const enlaces = await env.DB.prepare('SELECT winner_to, loser_to FROM matches WHERE id = ?').bind(id).first();
+  if (faltanPenaltis(enlaces, marcador.home_score, marcador.away_score, home_pen, away_pen)) {
+    return jsonResponse({ error: 'Es una eliminatoria y va empate: indica el resultado de los penaltis.', penaltis: true }, 409);
+  }
+  const empate = marcador.home_score === marcador.away_score;
   const { results: goleadores } = await env.DB.prepare(
     "SELECT player_id, team_id, COUNT(*) AS n FROM match_events WHERE match_id = ? AND type = 'gol' GROUP BY player_id, team_id"
   ).bind(id).all();
 
   // Se guarda el resultado oficial igual que al introducirlo a mano: así lo ven clasificación y fichas.
   const sentencias = [
-    env.DB.prepare('UPDATE matches SET home_score = ?, away_score = ?, played = 1 WHERE id = ?')
-      .bind(marcador.home_score, marcador.away_score, id),
+    env.DB.prepare('UPDATE matches SET home_score = ?, away_score = ?, home_pen = ?, away_pen = ?, played = 1 WHERE id = ?')
+      .bind(marcador.home_score, marcador.away_score, empate ? home_pen : null, empate ? away_pen : null, id),
     env.DB.prepare('DELETE FROM goals WHERE match_id = ?').bind(id),
     env.DB.prepare('DELETE FROM match_live WHERE match_id = ?').bind(id),
   ];
@@ -137,6 +148,7 @@ export async function handleFinalizarPartido(request, env, idParam) {
     );
   }
   await env.DB.batch(sentencias);
+  await propagarEliminatoria(env, id);
   return jsonResponse(await estadoCompleto(env, id));
 }
 
@@ -147,12 +159,14 @@ export async function handleReiniciarPartido(request, env, idParam) {
   await ensureDirecto(env);
   const partido = await getPartido(env, id);
   if (!partido) return jsonResponse({ error: 'Partido no encontrado.' }, 404);
+  const completo = await env.DB.prepare('SELECT * FROM matches WHERE id = ?').bind(id).first();
+  await deshacerEliminatoria(env, completo);
 
   await env.DB.batch([
     env.DB.prepare('DELETE FROM match_events WHERE match_id = ?').bind(id),
     env.DB.prepare('DELETE FROM match_live WHERE match_id = ?').bind(id),
     env.DB.prepare('DELETE FROM goals WHERE match_id = ?').bind(id),
-    env.DB.prepare('UPDATE matches SET home_score = NULL, away_score = NULL, played = 0 WHERE id = ?').bind(id),
+    env.DB.prepare('UPDATE matches SET home_score = NULL, away_score = NULL, home_pen = NULL, away_pen = NULL, played = 0 WHERE id = ?').bind(id),
   ]);
   return jsonResponse(await estadoCompleto(env, id));
 }

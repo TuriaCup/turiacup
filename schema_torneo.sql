@@ -33,6 +33,12 @@ CREATE TABLE IF NOT EXISTS matches (
   away_team_id INTEGER REFERENCES teams(id),
   home_label TEXT,   -- fase final: hueco sin equipo aún («Mejor primero», «Ganador Octavo 1»)
   away_label TEXT,
+  home_pen INTEGER,  -- penaltis (fase final, solo si hay empate)
+  away_pen INTEGER,
+  winner_to INTEGER, -- fase final: partido al que pasa el ganador…
+  winner_slot TEXT,  -- …y en qué hueco ('home' / 'away')
+  loser_to INTEGER,  -- triangular: partido al que pasa el perdedor
+  loser_slot TEXT,
   home_score INTEGER,
   away_score INTEGER,
   played INTEGER NOT NULL DEFAULT 0,

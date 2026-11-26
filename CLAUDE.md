@@ -110,6 +110,10 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
   grupos; entonces `home_label`/`away_label` dicen quién ocupará el hueco («Mejor primero», «Ganador Octavo 1»).
   Las columnas las crea `ensureDirecto` (ALTER TABLE) y las consultas de partidos usan LEFT JOIN +
   `COALESCE(nombre, label, 'Por definir')`. Resultado y directo se bloquean hasta asignar los dos equipos.
+- **Eliminatorias encadenadas** (`worker/lib/eliminatorias.js`): al guardar un resultado de fase final (a mano o al
+  finalizar el directo) el ganador se copia al hueco `winner_slot` del partido `winner_to` (y en el triangular el
+  perdedor a `loser_to`), solo si ese partido no se ha jugado. Empate en un partido que lleva a otro → penaltis
+  obligatorios (`home_pen`/`away_pen`). «Reiniciar» vacía el hueco que había llenado. Los enlaces se cargaron por SQL.
 - **La clasificación no se almacena**: se calcula al vuelo con los partidos de `phase='grupos'`
   y `played=1`. Desempate: puntos → diferencia de goles → goles a favor → nombre.
 - **La ruta `/api/admin/equipos/importar` va antes que `/api/admin/equipos/:id`** en `routeAdmin`.

@@ -59,7 +59,7 @@ export async function handleGetEquipo(request, env, idParam) {
   await ensureDirecto(env);
   const { results: partidos } = await env.DB.prepare(
     `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
-            m.home_score, m.away_score, m.played, m.scheduled_at, m.venue,
+            m.home_score, m.away_score, m.home_pen, m.away_pen, m.played, m.scheduled_at, m.venue,
             ht.name AS home_team_name, at.name AS away_team_name,
             ht.logo_url AS home_logo, at.logo_url AS away_logo,
             ml.match_id IS NOT NULL AS live
@@ -238,7 +238,7 @@ export async function handleGetPartido(request, env, idParam) {
   await ensureDirecto(env);
   const partido = await env.DB.prepare(
     `SELECT m.id, m.category, m.phase, m.group_name, m.round_name, m.home_team_id, m.away_team_id,
-            m.home_score, m.away_score, m.played, m.scheduled_at, m.venue,
+            m.home_score, m.away_score, m.home_pen, m.away_pen, m.played, m.scheduled_at, m.venue,
             COALESCE(ht.name, m.home_label, 'Por definir') AS home_team_name, ht.logo_url AS home_logo,
             COALESCE(at.name, m.away_label, 'Por definir') AS away_team_name, at.logo_url AS away_logo,
             ml.match_id IS NOT NULL AS live
