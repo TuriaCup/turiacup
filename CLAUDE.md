@@ -174,3 +174,7 @@ Los dos ficheros son idempotentes (`CREATE TABLE IF NOT EXISTS`) y se aplican a 
 - **«Atrás» en la app**: cada paso se numera en `history.state.paso`. Con el paso 0, la flecha vuelve a la página de la
   web de la que se vino (o a `/`). Si reescribes la URL con `history.replaceState`, pasa `history.state` para no
   perder la numeración.
+- **Todo lo que se nombra se puede pulsar**: en la app, grupo, categoría, fase, campo, jugador y equipo son enlaces.
+  Las rutas admiten la categoría al final (`#grupos/C/U11`, `#final/oro/U10`, `#inicio//U12`) y, si es otra, la app
+  cambia de categoría sola; `#sedes/<campo>` abre el mapa con ese campo marcado. Tras aplicar el grupo o el campo
+  del hash, se quita del hash (`replaceState`) para que el refresco automático no deshaga lo que elija el usuario.

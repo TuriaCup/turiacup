@@ -242,3 +242,11 @@ body.app-body { background: var(--a-fondo); overscroll-behavior-y: none; -webkit
 .app-banner.urgente p b { color: #ffe1dc; }
 .app-banner.urgente .a-ban-ico { background: #fff; color: var(--a-vivo); font-style: normal; }
 .app-banner.urgente button { color: #ffe1dc; }
+
+/* Enlaces dentro de textos (grupo, categoría, campo, jugador…): todo lo que se nombra se puede pulsar */
+.a-stats > a { color: inherit; text-decoration: none; }
+.a-stats > a span { color: var(--a-naranja-osc); font-weight: 700; }
+.a-marc-meta a, .a-inc a { color: inherit; text-decoration: underline; text-decoration-color: rgba(198, 91, 0, .45); text-underline-offset: 3px; }
+.a-marc-meta { margin-top: 8px; }
+.a-marc-meta a { color: var(--a-naranja-osc); font-weight: 600; text-decoration: none; }
+.a-previsto a.fase-chip { text-decoration: none; }

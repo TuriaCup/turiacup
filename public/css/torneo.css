@@ -329,3 +329,7 @@ button.fase-tab { font: inherit; font-weight: 800; cursor: pointer; }
 .fase-chip.fase-plata { background: #e3e6ea; color: #2c3440; }
 .fase-chip.fase-bronce { background: #f0d2b6; color: #5a2e0b; }
 #grupoPartidos[hidden] { display: none; }
+
+/* Categoría, grupo y fase enlazados en las fichas de equipo, partido y jugador */
+.ficha-info a, .entity-meta a { color: var(--blue-700); font-weight: 600; text-decoration: none; }
+.ficha-info a:hover, .entity-meta a:hover { text-decoration: underline; }

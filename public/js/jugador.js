@@ -27,6 +27,7 @@ async function load() {
             <span class="match-score">${g.home_score} - ${g.away_score}</span>
             <span class="match-meta">${formatFecha(g.scheduled_at)}${g.round_name ? ` · ${escapeHtml(g.round_name)}` : g.group_name ? ` · Grupo ${escapeHtml(g.group_name)}` : ''}</span>
             <div class="match-scorers">⚽ ${g.count} gol${g.count > 1 ? 'es' : ''}</div>
+            <a class="match-ficha" href="partido.html?id=${g.match_id}" aria-label="Ver ficha del partido"></a>
           </div>
         `).join('')
       : '<p class="empty-state">Todavía no ha marcado goles.</p>';
@@ -39,7 +40,7 @@ async function load() {
           <div class="entity-meta">
             ${jugador.dorsal ? `Dorsal ${jugador.dorsal} · ` : ''}
             <a href="equipo.html?id=${jugador.team_id}">${escapeHtml(jugador.team_name)}</a>
-            · ${escapeHtml(jugador.category)}
+            · <a href="torneo.html?categoria=${encodeURIComponent(jugador.category)}">${escapeHtml(jugador.category)}</a>
             ${jugador.anio_nacimiento ? ` · Nacido en ${escapeHtml(jugador.anio_nacimiento)}` : ''}
           </div>
         </div>

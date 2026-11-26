@@ -87,6 +87,12 @@
   const hoy = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const enJuego = (m) => Boolean(m.live) && !m.played;
   const porFecha = (a, b) => (a.scheduled_at || '9999').localeCompare(b.scheduled_at || '9999') || (a.venue || '').localeCompare(b.venue || '');
+  const enc = encodeURIComponent;
+  const enlaceGrupo = (cat, g) => `#grupos/${enc(g)}/${enc(cat)}`;
+  const enlaceFase = (cat, fase) => `#final/${enc(fase)}/${enc(cat)}`;
+  const enlaceCategoria = (cat) => `#inicio//${enc(cat)}`;
+  const enlaceEtapa = (m) => (FASES[m.phase] ? enlaceFase(m.category, m.phase) : m.group_name ? enlaceGrupo(m.category, m.group_name) : '');
+  const enlaceCampo = (v) => `#sedes/${enc(v)}`;
   const etapa = (m) => m.round_name || (m.group_name ? `Grupo ${m.group_name}` : '') || FASES[m.phase] || '';
   const sinCampo = (v) => String(v || '').replace(/\s*[·\-–,]?\s*campo\s*\d+\s*/i, ' ').trim();
   // Si toda la categoría se juega en una sola instalación, basta con «Campo 2».
@@ -264,8 +270,9 @@
         : '<p class="a-vacio">No hay partidos con este filtro.</p>'}`;
   }
 
-  async function vistaGrupos() {
+  async function vistaGrupos(arg) {
     const d = await cargarCategoria(categoria);
+    if (arg) { ui.grupo = arg; history.replaceState(history.state, '', '#grupos'); }
     const grupos = [...new Set(d.equipos.map((e) => e.group_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
     if (!grupos.length) return '<p class="a-vacio">Todavía no hay grupos asignados en esta categoría.</p>';
     if (!ui.grupo || (ui.grupo !== 'POS' && !grupos.includes(ui.grupo))) {
@@ -283,7 +290,7 @@
     return `${chips}
       <div class="a-tabla">${tablaGrupoHtml(filas, { enlaces: true, miId: fav && fav.id })}</div>
       ${grupos.length > 1 && filas.some((r) => r.pj > 0) ? `<div class="a-card a-previsto"><b>Si el grupo acabara ahora</b>
-        ${filas.map((r, i) => `<div><span>${i + 1}.º ${escapeHtml(r.name)}</span><span class="fase-chip fase-${previstas[i]}">${FASES[previstas[i]]}</span></div>`).join('')}</div>` : ''}
+        ${filas.map((r, i) => `<div><span>${i + 1}.º ${escapeHtml(r.name)}</span><a class="fase-chip fase-${previstas[i]}" href="${enlaceFase(categoria, previstas[i])}">${FASES[previstas[i]]}</a></div>`).join('')}</div>` : ''}
       ${seccion('Partidos del grupo')}${lista(partidos, fav && fav.id)}`;
   }
 
@@ -299,7 +306,7 @@
     if (!sel.length) return '<p class="a-vacio">Ningún club coincide con la búsqueda.</p>';
     const grupos = [...new Set(sel.map((e) => e.group_name || ''))];
     return grupos.map((g) => `
-      ${seccion(g ? `Grupo ${g}` : 'Sin grupo')}
+      ${g ? seccion(`Grupo ${g}`, enlaceGrupo(categoria, g), 'Clasificación') : seccion('Sin grupo')}
       <div class="a-card">${sel.filter((e) => (e.group_name || '') === g).map((e) => `
         <div class="a-equipo"><a href="#equipo/${e.id}">${crestHtml(e.logo_url)}<span><b>${escapeHtml(e.name)}</b>${e.city ? `<small>${escapeHtml(e.city)}</small>` : ''}</span></a>
           ${estrellaBtn(e.id, e.category)}</div>`).join('')}</div>`).join('');
@@ -358,18 +365,18 @@
       html: `
         <div class="a-ficha-cab">${e.logo_url ? `<img src="${escapeHtml(e.logo_url)}" alt="">` : '<span class="crest crest-vacio"></span>'}
           <h1>${escapeHtml(e.name)}</h1>
-          <p>${[e.category, e.group_name ? `Grupo ${e.group_name}` : '', e.city].filter(Boolean).map(escapeHtml).join(' · ')}</p>
+          <p><a href="${enlaceCategoria(e.category)}">${escapeHtml(e.category)}</a>${e.group_name ? ` · <a href="${enlaceGrupo(e.category, e.group_name)}">Grupo ${escapeHtml(e.group_name)}</a>` : ''}${e.city ? ` · ${escapeHtml(e.city)}` : ''}</p>
           ${estrellaBtn(e.id, e.category, true)}
         </div>
         ${clas ? `<div class="a-card a-stats">
-          <div><b>${clas.pos}.º</b><span>Grupo</span></div><div><b>${clas.fila.pts}</b><span>Puntos</span></div>
+          <a href="${enlaceGrupo(e.category, e.group_name)}"><b>${clas.pos}.º</b><span>Grupo ${escapeHtml(e.group_name)}</span></a><div><b>${clas.fila.pts}</b><span>Puntos</span></div>
           <div><b>${clas.fila.pg}-${clas.fila.pe}-${clas.fila.pp}</b><span>G-E-P</span></div>
           <div><b>${clas.fila.gf}:${clas.fila.gc}</b><span>Goles</span></div></div>` : ''}
-        ${fasePropia ? `<a class="a-boton a-boton-ancho" href="#final/${fasePropia.phase}">Ver su cuadro de ${FASES[fasePropia.phase]}</a>` : ''}
+        ${fasePropia ? `<a class="a-boton a-boton-ancho" href="${enlaceFase(e.category, fasePropia.phase)}">Ver su cuadro de ${FASES[fasePropia.phase]}</a>` : ''}
         ${proximos.length ? `${seccion('Próximos partidos')}${lista(proximos, e.id)}` : ''}
         ${jugados.length ? `${seccion('Resultados')}${lista(jugados, e.id)}` : ''}
         ${!todos.length ? `${seccion('Partidos')}<p class="a-vacio">Todavía no tiene partidos programados.</p>` : ''}
-        ${clas ? `${seccion(`Grupo ${e.group_name}`)}<div class="a-tabla">${tablaGrupoHtml(clas.filas, { enlaces: true, miId: e.id })}</div>` : ''}
+        ${clas ? `${seccion(`Grupo ${e.group_name}`, enlaceGrupo(e.category, e.group_name), 'Ver grupo')}<div class="a-tabla">${tablaGrupoHtml(clas.filas, { enlaces: true, miId: e.id })}</div>` : ''}
         ${seccion('Plantilla')}
         ${jugadores.length ? `<div class="a-card">${jugadores.map((j) => `
           <a class="a-jugador" href="#jugador/${j.id}"><span class="a-dorsal">${j.dorsal ?? ''}</span><span>${escapeHtml(j.nombre)} ${escapeHtml(j.apellidos)}</span>${ICO.flecha}</a>`).join('')}</div>`
@@ -402,12 +409,16 @@
               ${pen ? `<small>Penaltis ${m.home_pen} - ${m.away_pen}</small>` : ''}</div>
             ${lado(m.away_team_id, m.away_team_name, m.away_logo)}</div>
           <div class="a-marc-estado">${estadoTxt}</div>
-          ${live || m.played ? '' : `<div class="a-marc-meta">${escapeHtml([etapa(m), m.venue].filter(Boolean).join(' · '))}</div>`}
+          <div class="a-marc-meta">${[
+            `<a href="${enlaceCategoria(m.category)}">${escapeHtml(m.category)}</a>`,
+            etapa(m) ? (enlaceEtapa(m) ? `<a href="${enlaceEtapa(m)}">${escapeHtml(etapa(m))}</a>` : escapeHtml(etapa(m))) : '',
+            m.venue ? `<a href="${enlaceCampo(m.venue)}">${escapeHtml(campoCorto(m.venue))}</a>` : '',
+          ].filter(Boolean).join(' · ')}</div>
         </div>
         ${(m.played || live) && goles.length ? `${seccion('Goles')}<div class="a-card a-goles2"><div>${columna(m.home_team_id)}</div><div>${columna(m.away_team_id)}</div></div>` : ''}
         ${(incidencias || []).length ? `${seccion('Incidencias')}<div class="a-card">${incidencias.map((e) => `
-          <div class="a-inc"><i class="a-inc-${e.type}"></i><span>${TEXTO_INC[e.type] || ''} · ${escapeHtml(e.nombre)} ${escapeHtml(e.apellidos)}</span>
-          <small>${escapeHtml(Number(e.team_id) === Number(m.home_team_id) ? m.home_team_name : m.away_team_name)}</small></div>`).join('')}</div>` : ''}
+          <div class="a-inc"><i class="a-inc-${e.type}"></i><span>${TEXTO_INC[e.type] || ''} · <a href="#jugador/${e.player_id}">${escapeHtml(e.nombre)} ${escapeHtml(e.apellidos)}</a></span>
+          <small><a href="#equipo/${e.team_id}">${escapeHtml(Number(e.team_id) === Number(m.home_team_id) ? m.home_team_name : m.away_team_name)}</a></small></div>`).join('')}</div>` : ''}
         ${m.venue ? `${seccion('Dónde se juega')}<div class="a-card a-plano">${miniPlanoHtml(m.venue) || `<p>${escapeHtml(m.venue)}</p>`}
           <a class="a-boton a-boton-ancho" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${sinCampo(m.venue)} Valencia`)}">Abrir en Google Maps</a></div>` : ''}
         ${live ? '<p class="a-nota">El marcador se actualiza solo.</p>' : ''}`,
@@ -424,7 +435,7 @@
       html: `
         <div class="a-ficha-cab"><span class="a-dorsal-grande">${j.dorsal ?? '–'}</span>
           <h1>${escapeHtml(j.nombre)} ${escapeHtml(j.apellidos)}</h1>
-          <p><a href="#equipo/${j.team_id}">${escapeHtml(j.team_name)}</a> · ${escapeHtml(j.category)}</p></div>
+          <p><a href="#equipo/${j.team_id}">${escapeHtml(j.team_name)}</a> · <a href="${enlaceCategoria(j.category)}">${escapeHtml(j.category)}</a></p></div>
         <div class="a-card a-stats a-stats-1"><div><b>${totalGoles}</b><span>${totalGoles === 1 ? 'Gol' : 'Goles'}</span></div></div>
         ${goles.length ? `${seccion('Partidos en los que marcó')}<div class="a-card">${goles.map((g) => `
           <a class="a-jugador" href="#partido/${g.match_id}"><span class="a-dorsal">${g.count}</span>
@@ -453,8 +464,9 @@
     };
   }
 
-  async function fichaSedes() {
+  async function fichaSedes(campoPedido) {
     const d = await cargarCategoria(categoria);
+    if (campoPedido) ui.campos[sinCampo(campoPedido)] = campoPedido;
     const campos = [...new Set(d.partidos.map((m) => m.venue).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
     const sedes = [...new Set(campos.map(sinCampo))].sort((a, b) => a.localeCompare(b, 'es'));
     if (!sedes.length) return { titulo: 'Cómo llegar', sub: categoria, html: '<p class="a-vacio">Los campos se publicarán junto con el calendario.</p>' };
@@ -494,9 +506,12 @@
   let saltoSinPaso = false; // un location.replace no es un paso nuevo
 
   function ruta() {
-    const [nombre, arg] = location.hash.replace(/^#/, '').split('/');
-    if (VISTAS[nombre]) return { tipo: 'vista', nombre, arg };
-    if (FICHAS[nombre]) return { tipo: 'ficha', nombre, arg };
+    const [nombre, a, c] = location.hash.replace(/^#/, '').split('/');
+    const dec = (x) => { try { return decodeURIComponent(x || ''); } catch { return ''; } };
+    const arg = dec(a);
+    const cat = CATEGORIAS.includes(dec(c).toUpperCase()) ? dec(c).toUpperCase() : null;
+    if (VISTAS[nombre]) return { tipo: 'vista', nombre, arg, cat };
+    if (FICHAS[nombre]) return { tipo: 'ficha', nombre, arg, cat };
     return { tipo: 'vista', nombre: 'inicio' };
   }
 
@@ -521,6 +536,7 @@
     const turno = ++pintando;
     const scroll = $view.scrollTop;
     clearTimeout(temporizador);
+    if (r.cat && r.cat !== categoria) cambiarCategoria(r.cat); // un enlace a otra categoría (p. ej. un grupo)
     if (r.tipo === 'vista') ultimaPestana = r.nombre;
     pintarTabs(ultimaPestana);
     if (!opciones.silencioso) {
@@ -588,6 +604,12 @@
     });
   }
 
+  function cambiarCategoria(c) {
+    categoria = c;
+    escribir('tc-cat', categoria);
+    ui.grupo = null; ui.dia = null; ui.filtro = 'todos'; ui.busca = '';
+  }
+
   function elegirCategoria() {
     $sheet.innerHTML = `<div class="a-sheet" role="dialog" aria-label="Elegir categoría"><div class="a-asa"></div><h2>Categoría</h2>
       <div class="a-cats">${CATEGORIAS.map((c) => `<button type="button" data-set-cat="${c}" aria-pressed="${c === categoria}">${c}</button>`).join('')}</div></div>`;
@@ -649,9 +671,7 @@
     } else if ('elegirCat' in d) {
       elegirCategoria();
     } else if (d.setCat) {
-      categoria = d.setCat;
-      escribir('tc-cat', categoria);
-      ui.grupo = null; ui.dia = null; ui.filtro = 'todos'; ui.busca = '';
+      cambiarCategoria(d.setCat);
       $sheet.hidden = true;
       pintar();
     } else if ('atras' in d) {
@@ -660,7 +680,7 @@
       else if (vieneDeLaWeb) history.back();
       else location.href = '/';
     } else if (d.campo) {
-      ui.campos[d.sede] = d.campo; pintar({ silencioso: true });
+      ui.campos[d.sede] = d.campo; history.replaceState(history.state, '', '#sedes'); pintar({ silencioso: true });
     } else if (d.dia) {
       ui.dia = d.dia; pintar({ silencioso: true });
     } else if (d.filtro) {

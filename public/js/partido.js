@@ -41,11 +41,15 @@ async function load() {
         ${id ? `<a href="equipo.html?id=${id}">${escapeHtml(name)}</a>` : `<span class="por-definir">${escapeHtml(name)}</span>`}
       </div>`;
 
-    const info = [m.category];
-    if (m.round_name) info.push(m.round_name);
-    else if (m.group_name) info.push(`Grupo ${m.group_name}`);
-    if (m.venue) info.push(m.venue);
-    info.push(formatFechaHora(m.scheduled_at));
+    // Categoría, grupo y fase enlazan a su clasificación o a su cuadro.
+    const cat = encodeURIComponent(m.category);
+    const enlace = (href, texto) => `<a href="${href}">${escapeHtml(texto)}</a>`;
+    const info = [enlace(`torneo.html?categoria=${cat}`, m.category)];
+    if (['oro', 'plata', 'bronce'].includes(m.phase)) info.push(enlace(`cuadro.html?categoria=${cat}&fase=${m.phase}`, m.round_name || m.phase));
+    else if (m.round_name) info.push(escapeHtml(m.round_name));
+    else if (m.group_name) info.push(enlace(`torneo.html?categoria=${cat}&tab=clasificacion&grupo=${encodeURIComponent(m.group_name)}`, `Grupo ${m.group_name}`));
+    if (m.venue) info.push(escapeHtml(m.venue));
+    info.push(escapeHtml(formatFechaHora(m.scheduled_at)));
 
     content.innerHTML = `
       ${publicado ? '' : avisoInternoHtml()}
@@ -54,7 +58,7 @@ async function load() {
         <div class="ficha-score">${(m.played || m.live) ? `${m.home_score ?? 0} - ${m.away_score ?? 0}` : 'vs'}${m.home_pen != null && m.away_pen != null ? `<small class="ficha-pen">Penaltis ${m.home_pen} - ${m.away_pen}</small>` : ''}</div>
         ${equipo(m.away_team_id, m.away_team_name, m.away_logo)}
       </div>
-      <p class="ficha-info">${info.map(escapeHtml).join(' · ')}${m.played ? '' : (m.live ? '' : ' · Por jugar')}</p>
+      <p class="ficha-info">${info.join(' · ')}${m.played ? '' : (m.live ? '' : ' · Por jugar')}</p>
       ${miniPlanoHtml(m.venue)}
       ${m.live && !m.played ? '<p style="text-align:center"><span class="match-live">● EN JUEGO</span></p>' : ''}
       ${(m.played || m.live) ? `
