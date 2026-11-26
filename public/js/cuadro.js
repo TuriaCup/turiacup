@@ -10,9 +10,16 @@ function renderMatchCard(m) {
   return matchCardHtml(m, equipoId, true);
 }
 
+// Orden de las columnas y, dentro de cada una, por número de cruce («Octavos de final · 3»):
+// así el árbol queda alineado (los dos cruces de los que sale cada partido, a su altura).
+const ORDEN_RONDA = ['Octavos de final', 'Cuartos de final', 'Semifinal', 'Final', 'Triangular'];
+const numCruce = (m) => Number(((m.round_name || '').split(' · ')[1]) || 0);
+const posRonda = (nombre) => { const i = ORDEN_RONDA.indexOf(nombre); return i < 0 ? 99 : i; };
+
 function renderRondas(partidos) {
   if (!partidos.length) return '<p class="empty-state">Cruces por definir.</p>';
   const rondas = [];
+  partidos = [...partidos].sort((x, y) => numCruce(x) - numCruce(y));
   for (const m of partidos) {
     // «Octavos de final · 3» se agrupa en la columna «Octavos de final»
     const nombre = (m.round_name || 'Cruces').split(' · ')[0];
@@ -20,6 +27,7 @@ function renderRondas(partidos) {
     if (!r) rondas.push(r = { nombre, partidos: [] });
     r.partidos.push(m);
   }
+  rondas.sort((x, y) => posRonda(x.nombre) - posRonda(y.nombre));
   const chips = rondas.map((r, i) =>
     `<button type="button" class="ronda-chip${i === 0 ? ' active' : ''}" data-i="${i}">${escapeHtml(r.nombre)}</button>`).join('');
   const cols = rondas.map((r) => `
